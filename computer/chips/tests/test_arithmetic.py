@@ -4,12 +4,7 @@ from bitarray import bitarray
 
 from computer.chips.arithmetic import half_adder, full_adder, ADD16, INC16
 
-ZEROS = bitarray('0' * 16)
-ONES = bitarray('1' * 16)
-
-INT_ONE = bitarray('0000000000000001')
-INT_TWO = bitarray('0000000000000010')
-INT_THREE = bitarray('0000000000000011')
+from computer.chips.tests import ZEROS, ONES, INT_ONE, INT_TWO, INT_THREE
 
 
 class TestHalfAdder:

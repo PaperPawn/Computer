@@ -25,9 +25,9 @@ def MUX8WAY16(a, b, c, d, e, f, g, h, sel):
 
 def DMUX4WAY(a, sel):
     o1, o2 = DMUX(a, sel[0])
-    return bitarray(DMUX(o1, sel[1]) + DMUX(o2, sel[1]))
+    return DMUX(o1, sel[1]) + DMUX(o2, sel[1])
 
 
 def DMUX8WAY(a, sel):
     o1, o2, o3, o4 = DMUX4WAY(a, sel[:2])
-    return bitarray(DMUX(o1, sel[2]) + DMUX(o2, sel[2]) + DMUX(o3, sel[2]) + DMUX(o4, sel[2]))
+    return DMUX(o1, sel[2]) + DMUX(o2, sel[2]) + DMUX(o3, sel[2]) + DMUX(o4, sel[2])

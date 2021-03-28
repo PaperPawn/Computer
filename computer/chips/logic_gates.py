@@ -1,3 +1,6 @@
+from bitarray import bitarray
+
+
 def NAND(a, b):
     if a == 1 and b == 1:
         return 0
@@ -26,4 +29,4 @@ def MUX(a, b, sel):
 
 
 def DMUX(a, sel):
-    return AND(a, NOT(sel)), AND(a, sel)
+    return bitarray((AND(a, NOT(sel)), AND(a, sel)))

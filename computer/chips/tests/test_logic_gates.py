@@ -1,4 +1,6 @@
 import pytest
+
+from bitarray import bitarray
 from computer.chips.logic_gates import NAND, NOT, AND, OR, XOR, MUX, DMUX
 
 
@@ -72,12 +74,12 @@ class TestMux:
 
 
 class TestDMux:
-    truth_table = [(0, 0, 0, 0),
-                   (0, 1, 0, 0),
-                   (1, 0, 1, 0),
-                   (1, 1, 0, 1),
+    truth_table = [(0, 0, bitarray('00')),
+                   (0, 1, bitarray('00')),
+                   (1, 0, bitarray('10')),
+                   (1, 1, bitarray('01')),
                    ]
 
-    @pytest.mark.parametrize('a, sel, out_1, out_2', truth_table)
-    def test_dmux(self, a, sel, out_1, out_2):
-        assert DMUX(a, sel) == (out_1, out_2)
+    @pytest.mark.parametrize('a, sel, expected', truth_table)
+    def test_dmux(self, a, sel, expected):
+        assert DMUX(a, sel) == expected

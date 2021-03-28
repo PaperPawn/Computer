@@ -1,12 +1,9 @@
 import pytest
 from bitarray import bitarray
 
-from computer.chips.logic_gates_16bit import NOT16, AND16, OR16, MUX16
+from computer.chips.logic_gates_16bit import NOT16, AND16, OR16, XOR16, MUX16
 
-ZEROS = bitarray('0' * 16)
-ONES = bitarray('1' * 16)
-ALTERNATING_ZERO_ONE = bitarray('01' * 8)
-ALTERNATING_ONE_ZERO = bitarray('10' * 8)
+from computer.chips.tests import ZEROS, ONES, ALTERNATING_ZERO_ONE, ALTERNATING_ONE_ZERO
 
 
 class TestNot16:
@@ -46,6 +43,20 @@ class TestOr16:
     @pytest.mark.parametrize('a, b, expected', truth_table)
     def test_or16(self, a, b, expected):
         assert OR16(a, b) == expected
+
+
+class TestXOr16:
+    truth_table = [(ZEROS, ZEROS, ZEROS),
+                   (ZEROS, ONES, ONES),
+                   (ONES, ZEROS, ONES),
+                   (ONES, ONES, ZEROS),
+                   (ALTERNATING_ZERO_ONE, ONES, ALTERNATING_ONE_ZERO),
+                   (ALTERNATING_ZERO_ONE, ZEROS, ALTERNATING_ZERO_ONE),
+                   ]
+
+    @pytest.mark.parametrize('a, b, expected', truth_table)
+    def test_xor16(self, a, b, expected):
+        assert XOR16(a, b) == expected
 
 
 class TestMux16:

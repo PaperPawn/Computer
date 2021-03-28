@@ -3,9 +3,7 @@ import pytest
 from bitarray import bitarray
 from computer.chips.logic_gates_multi_way import OR8WAY, MUX4WAY16, MUX8WAY16, DMUX4WAY, DMUX8WAY
 
-ZEROS = bitarray('0' * 16)
-ONES = bitarray('1' * 16)
-ALTERNATING_ONE_ZERO = bitarray('10' * 8)
+from computer.chips.tests import ZEROS, ONES, ALTERNATING_ONE_ZERO
 
 
 class TestOr8Way:

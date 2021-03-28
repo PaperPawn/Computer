@@ -16,7 +16,7 @@ def full_adder(a, b, c):
 
 
 def ADD16(a, b):
-    out = bitarray('0'*16)
+    out = bitarray(16)
 
     out[-1], carry = half_adder(a[-1], b[-1])
     for i in range(2, 17):
@@ -25,7 +25,8 @@ def ADD16(a, b):
 
 
 def INC16(a):
-    out = bitarray('0'*16)
+    out = bitarray(16)
+
     out[-1] = NOT(a[-1])
     carry = a[-1]
     for i in range(2, 17):

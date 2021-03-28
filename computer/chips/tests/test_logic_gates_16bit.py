@@ -1,14 +1,20 @@
 import pytest
+from bitarray import bitarray
 
 from computer.chips.logic_gates_16bit import NOT16, AND16, OR16, MUX16
 
+ZEROS = bitarray('0' * 16)
+ONES = bitarray('1' * 16)
+ALTERNATING_ZERO_ONE = bitarray('01' * 8)
+ALTERNATING_ONE_ZERO = bitarray('10' * 8)
+
 
 class TestNot16:
-    truth_table = [([0]*16, [1]*16),
-                   ([1]*16, [0]*16),
-                   ([0, 1]*8, [1, 0]*8),
-                   ([0, 0, 1, 0, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 0],
-                    [1, 1, 0, 1, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 1])]
+    truth_table = [(ZEROS, ONES),
+                   (ONES, ZEROS),
+                   (ALTERNATING_ZERO_ONE, ALTERNATING_ONE_ZERO),
+                   (bitarray('0010110111011100'),
+                    bitarray('1101001000100011'))]
 
     @pytest.mark.parametrize('a, expected', truth_table)
     def test_not16(self, a, expected):
@@ -16,11 +22,11 @@ class TestNot16:
 
 
 class TestAnd16:
-    truth_table = [([0]*16, [0]*16, [0]*16),
-                   ([0]*16, [1]*16, [0]*16),
-                   ([1]*16, [0]*16, [0]*16),
-                   ([1]*16, [1]*16, [1]*16),
-                   ([0, 1]*8, [1]*16, [0, 1]*8),
+    truth_table = [(ZEROS, ZEROS, ZEROS),
+                   (ZEROS, ONES, ZEROS),
+                   (ONES, ZEROS, ZEROS),
+                   (ONES, ONES, ONES),
+                   (ALTERNATING_ZERO_ONE, ONES, ALTERNATING_ZERO_ONE),
                    ]
 
     @pytest.mark.parametrize('a, b, expected', truth_table)
@@ -29,12 +35,12 @@ class TestAnd16:
 
 
 class TestOr16:
-    truth_table = [([0]*16, [0]*16, [0]*16),
-                   ([0]*16, [1]*16, [1]*16),
-                   ([1]*16, [0]*16, [1]*16),
-                   ([1]*16, [1]*16, [1]*16),
-                   ([0, 1]*8, [1]*16, [1]*16),
-                   ([0, 1]*8, [0]*16, [0, 1]*8),
+    truth_table = [(ZEROS, ZEROS, ZEROS),
+                   (ZEROS, ONES, ONES),
+                   (ONES, ZEROS, ONES),
+                   (ONES, ONES, ONES),
+                   (ALTERNATING_ZERO_ONE, ONES, ONES),
+                   (ALTERNATING_ZERO_ONE, ZEROS, ALTERNATING_ZERO_ONE),
                    ]
 
     @pytest.mark.parametrize('a, b, expected', truth_table)
@@ -43,12 +49,12 @@ class TestOr16:
 
 
 class TestMux16:
-    truth_table = [([0]*16, [0]*16, 0, [0]*16),
-                   ([0]*16, [0]*16, 1, [0]*16),
-                   ([1]*16, [0]*16, 0, [1]*16),
-                   ([1]*16, [0]*16, 1, [0]*16),
-                   ([0, 1]*8, [1]*16, 0, [0, 1]*8),
-                   ([0, 1]*8, [1]*16, 1, [1]*16)]
+    truth_table = [(ZEROS, ZEROS, 0, ZEROS),
+                   (ZEROS, ZEROS, 1, ZEROS),
+                   (ONES, ZEROS, 0, ONES),
+                   (ONES, ZEROS, 1, ZEROS),
+                   (ALTERNATING_ZERO_ONE, ONES, 0, ALTERNATING_ZERO_ONE),
+                   (ALTERNATING_ZERO_ONE, ONES, 1, ONES)]
 
     @pytest.mark.parametrize('a, b, sel, expected', truth_table)
     def test_mux16(self, a, b, sel, expected):

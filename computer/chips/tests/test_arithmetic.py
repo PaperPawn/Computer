@@ -1,6 +1,15 @@
 import pytest
 
+from bitarray import bitarray
+
 from computer.chips.arithmetic import half_adder, full_adder, ADD16, INC16
+
+ZEROS = bitarray('0' * 16)
+ONES = bitarray('1' * 16)
+
+INT_ONE = bitarray('0000000000000001')
+INT_TWO = bitarray('0000000000000010')
+INT_THREE = bitarray('0000000000000011')
 
 
 class TestHalfAdder:
@@ -30,25 +39,20 @@ class TestFullAdder:
 
 
 class TestAdd16:
-    truth_table = [([0]*16, [0]*16, [0]*16),
-                   ([0]*16, [1]*16, [1]*16),
-                   ([1]*16, [0]*16, [1]*16),
-                   ([1]*16, [1]*16, [1]*15 + [0]),
-                   ([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-                    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1]),
+    INT_OVERFLOW = bitarray('1' * 15 + '0')
 
-                   ([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-                    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-                    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0]),
+    INT_A = bitarray('0000001011010010')
+    INT_B = bitarray('0000000011001011')
+    INT_C = bitarray('0000001110011101')
 
-                   ([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0],
-                    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-                    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1]),
-
-                   ([0, 0, 0, 0, 0, 0, 1, 0, 1, 1, 0, 1, 0, 0, 1, 0],
-                    [0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 1, 0, 1, 1],
-                    [0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 1, 1, 1, 0, 1])]
+    truth_table = [(ZEROS, ZEROS, ZEROS),
+                   (ZEROS, ONES, ONES),
+                   (ONES, ZEROS, ONES),
+                   (ONES, ONES, INT_OVERFLOW),
+                   (ZEROS, INT_ONE, INT_ONE),
+                   (INT_ONE, INT_ONE, INT_TWO),
+                   (INT_TWO, INT_ONE, INT_THREE),
+                   (INT_A, INT_B, INT_C)]
 
     @pytest.mark.parametrize('a, b, expected', truth_table)
     def test_add16(self, a, b, expected):
@@ -56,18 +60,19 @@ class TestAdd16:
 
 
 class TestInc16:
-    truth_table = [([0]*16, [0]*15 + [1]),
-                   ([0]*15 + [1], [0]*14 + [1, 0]),
-                   ([0] + [1]*15, [1] + [0]*15),
-                   ([1]*16, [0]*16),
-
-                   ([0, 0, 0, 0, 0, 0, 1, 0, 1, 1, 0, 1, 0, 0, 1, 0],
-                    [0, 0, 0, 0, 0, 0, 1, 0, 1, 1, 0, 1, 0, 0, 1, 1]),
-
-                   ([0, 0, 0, 0, 0, 0, 1, 0, 1, 1, 0, 1, 0, 0, 1, 1],
-                    [0, 0, 0, 0, 0, 0, 1, 0, 1, 1, 0, 1, 0, 1, 0, 0])
+    INT_32767 = bitarray('0' + '1' * 15)
+    INT_32768 = bitarray('1' + '0' * 15)
+    INT_Ap0 = bitarray('0000001011010010')
+    INT_Ap1 = bitarray('0000001011010011')
+    INT_Ap2 = bitarray('0000001011010100')
+    truth_table = [(ZEROS, INT_ONE),
+                   (INT_ONE, INT_TWO),
+                   (INT_32767, INT_32768),
+                   (ONES, ZEROS),
+                   (INT_Ap0, INT_Ap1),
+                   (INT_Ap1, INT_Ap2)
                    ]
 
     @pytest.mark.parametrize('a, expected', truth_table)
-    def test_add16(self, a, expected):
+    def test_inc16(self, a, expected):
         assert INC16(a) == expected

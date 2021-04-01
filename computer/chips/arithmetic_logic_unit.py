@@ -2,7 +2,7 @@ from bitarray import bitarray
 
 from computer.chips.logic_gates import NOT, OR
 from computer.chips.logic_gates_16bit import NOT16, AND16, OR16, XOR16
-from computer.chips.logic_gates_multi_way import OR8WAY, MUX16
+from computer.chips.logic_gates_multi_way import OR8WAY, MUX16, MUX4WAY16
 
 from computer.chips.arithmetic import INC16, ADD16
 
@@ -60,10 +60,7 @@ def ALU(a, b, opcode):
     # Logical
     a_log = MUX16(a, bitflip, opcode[3])
 
-    pass_and = MUX16(a_log, AND16(a_log, b), opcode[2])
-    or_xor = MUX16(OR16(a_log, b), XOR16(a_log, b), opcode[2])
-
-    logical = MUX16(pass_and, or_xor, opcode[1])
+    logical = MUX4WAY16(a_log, AND16(a_log, b), OR16(a_log, b), XOR16(a_log, b), opcode[1:3])
 
     # Choose arithmetic or logical output
     out = MUX16(arithmetic, logical, opcode[0])

@@ -7,14 +7,16 @@ from computer.chips.tests import (ZEROS, ONES, INT_ONE, INT_TWO,
                                   INT_NEG_ONE, INT_NEG_TWO,
                                   ALTERNATING_ONE_ZERO, ALTERNATING_ZERO_ONE)
 
+UNUSED = bitarray(16)
+
 
 class TestALU:
-    truth_table_pass_through = [(INT_ONE, ZEROS, INT_ONE, 0, 0),
-                                (ZEROS, ZEROS, ZEROS, 1, 0),
-                                (INT_NEG_ONE, INT_NEG_ONE, INT_NEG_ONE, 0, 1),
-                                (INT_NEG_TWO, ZEROS, INT_NEG_TWO, 0, 1),
-                                (INT_ONE, ZEROS, INT_ONE, 0, 0),
-                                (INT_TWO, INT_ONE, INT_TWO, 0, 0)]
+    truth_table_pass_through = [(INT_ONE, UNUSED, INT_ONE, 0, 0),
+                                (ZEROS, UNUSED, ZEROS, 1, 0),
+                                (INT_NEG_ONE, UNUSED, INT_NEG_ONE, 0, 1),
+                                (INT_NEG_TWO, UNUSED, INT_NEG_TWO, 0, 1),
+                                (INT_ONE, UNUSED, INT_ONE, 0, 0),
+                                (INT_TWO, UNUSED, INT_TWO, 0, 0)]
 
     @pytest.mark.parametrize('a, b, expected_out, expected_is_zero, expected_is_neg', truth_table_pass_through)
     def test_alu_pass_through(self, a, b, expected_out,
@@ -22,11 +24,11 @@ class TestALU:
         opcode = bitarray('0000')
         assert ALU(a, b, opcode) == (expected_out, expected_is_zero, expected_is_neg)
 
-    truth_table_negate = [(ZEROS, ZEROS, ZEROS, 1, 0),
-                          (INT_ONE, ZEROS, INT_NEG_ONE, 0, 1),
-                          (INT_TWO, ZEROS, INT_NEG_TWO, 0, 1),
-                          (INT_NEG_ONE, ZEROS, INT_ONE, 0, 0),
-                          (INT_NEG_TWO, ZEROS, INT_TWO, 0, 0)]
+    truth_table_negate = [(ZEROS, UNUSED, ZEROS, 1, 0),
+                          (INT_ONE, UNUSED, INT_NEG_ONE, 0, 1),
+                          (INT_TWO, UNUSED, INT_NEG_TWO, 0, 1),
+                          (INT_NEG_ONE, UNUSED, INT_ONE, 0, 0),
+                          (INT_NEG_TWO, UNUSED, INT_TWO, 0, 0)]
 
     @pytest.mark.parametrize('a, b, expected_out, expected_is_zero, expected_is_neg', truth_table_negate)
     def test_alu_negate(self, a, b, expected_out,
@@ -34,10 +36,10 @@ class TestALU:
         opcode = bitarray('0001')
         assert ALU(a, b, opcode) == (expected_out, expected_is_zero, expected_is_neg)
 
-    truth_table_increment = [(ZEROS, ZEROS, INT_ONE, 0, 0),
-                             (INT_ONE, ZEROS, INT_TWO, 0, 0),
-                             (INT_NEG_ONE, ZEROS, ZEROS, 1, 0),
-                             (INT_NEG_TWO, ZEROS, INT_NEG_ONE, 0, 1),
+    truth_table_increment = [(ZEROS, UNUSED, INT_ONE, 0, 0),
+                             (INT_ONE, UNUSED, INT_TWO, 0, 0),
+                             (INT_NEG_ONE, UNUSED, ZEROS, 1, 0),
+                             (INT_NEG_TWO, UNUSED, INT_NEG_ONE, 0, 1),
                              ]
 
     @pytest.mark.parametrize('a, b, expected_out, expected_is_zero, expected_is_neg', truth_table_increment)
@@ -46,10 +48,10 @@ class TestALU:
         opcode = bitarray('0010')
         assert ALU(a, b, opcode) == (expected_out, expected_is_zero, expected_is_neg)
 
-    truth_table_decrement = [(INT_TWO, ZEROS, INT_ONE, 0, 0),
-                             (INT_ONE, ZEROS, ZEROS, 1, 0),
-                             (ZEROS, ZEROS, INT_NEG_ONE, 0, 1),
-                             (INT_NEG_ONE, ZEROS, INT_NEG_TWO, 0, 1),
+    truth_table_decrement = [(INT_TWO, UNUSED, INT_ONE, 0, 0),
+                             (INT_ONE, UNUSED, ZEROS, 1, 0),
+                             (ZEROS, UNUSED, INT_NEG_ONE, 0, 1),
+                             (INT_NEG_ONE, UNUSED, INT_NEG_TWO, 0, 1),
                              ]
 
     @pytest.mark.parametrize('a, b, expected_out, expected_is_zero, expected_is_neg', truth_table_decrement)
@@ -88,10 +90,10 @@ class TestALU:
 
     A = bitarray('0101101001100010')
     NOT_A = bitarray('1010010110011101')
-    truth_table_bitflip = [(ZEROS, ZEROS, ONES, 0, 1),
-                           (ONES, ZEROS, ZEROS, 1, 0),
-                           (INT_ONE, ZEROS, INT_NEG_TWO, 0, 1),
-                           (A, ZEROS, NOT_A, 0, 1)
+    truth_table_bitflip = [(ZEROS, UNUSED, ONES, 0, 1),
+                           (ONES, UNUSED, ZEROS, 1, 0),
+                           (INT_ONE, UNUSED, INT_NEG_TWO, 0, 1),
+                           (A, UNUSED, NOT_A, 0, 1)
                            ]
 
     @pytest.mark.parametrize('a, b, expected_out, expected_is_zero, expected_is_neg', truth_table_bitflip)

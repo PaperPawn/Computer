@@ -2,10 +2,9 @@ from bitarray import bitarray
 
 
 def NAND(a, b):
-    if a == 1 and b == 1:
+    if a and b:
         return 0
-    else:
-        return 1
+    return 1
 
 
 def NOT(a):

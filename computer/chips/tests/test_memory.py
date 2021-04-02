@@ -3,7 +3,7 @@ import pytest
 
 from bitarray import bitarray
 
-from computer.chips.memory import Register, RAM8, RAM64, RAM512, RAM4K, RAM16K, PC
+from computer.chips.memory import Register, RAM8, RAM64, RAM512, RAM4K, RAM32K, PC
 
 from computer.chips.tests import ZEROS, ONES, INT_ONE, INT_TWO, INT_THREE, INT_NEG_TWO, ALTERNATING_ONE_ZERO, ALTERNATING_ZERO_ONE
 
@@ -273,9 +273,9 @@ class TestRam4K:
         assert ram(UNUSED, address_2, 0) == value_2
 
 
-class TestRam16K:
+class TestRam32K:
     def test_set_then_get_no_mock(self):
-        ram = RAM16K()
+        ram = RAM32K()
 
         value_1 = INT_ONE
         address_1 = bitarray('011101010111101')

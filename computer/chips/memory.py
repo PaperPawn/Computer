@@ -86,7 +86,7 @@ class RAM4K(RAM8X):
         return RAM512
 
 
-class RAM16K(RAM8X):
+class RAM32K(RAM8X):
     @staticmethod
     def get_ram_type():
         return RAM4K

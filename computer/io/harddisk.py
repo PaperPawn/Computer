@@ -1,6 +1,7 @@
 from bitarray import bitarray
 
 from computer.chips.memory import Register
+from computer.utility.numbers import bin_to_dec
 
 
 class HardDisk:
@@ -20,18 +21,11 @@ class HardDisk:
         with open(file_path, 'wb') as file:
             self.data.tofile(file)
 
-    @staticmethod
-    def to_int(bits):
-        out = 0
-        for i, bit in enumerate(bits):
-            out += 2**(15-i) * bit
-        return out
-
     def __call__(self, address, select_sector, value, write):
         sector = self.sector(address, select_sector)
 
-        sector = self.to_int(sector)
-        address = self.to_int(address)
+        sector = bin_to_dec(sector)
+        address = bin_to_dec(address)
 
         i = self.sector_size * sector + 16 * address
 

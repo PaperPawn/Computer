@@ -118,7 +118,7 @@ class CPU:
 
     def __call__(self):
         pc_value = self.pc(NULL_ADDRESS, 0, 0, 0)
-        instruction = self.ram(NULL_ADDRESS, pc_value, 0)
+        instruction = self.ram_bus(NULL_ADDRESS, pc_value, 0)
 
         a_value = self.a(NULL_ADDRESS, 0)
         b_value = self.b(NULL_ADDRESS, 0)
@@ -136,7 +136,7 @@ class CPU:
         constant_address = INC16(pc_value)
 
         memory_address = MUX16(register_value, constant_address, source_is_pc)
-        memory_value = self.ram(NULL_ADDRESS, memory_address, 0)
+        memory_value = self.ram_bus(NULL_ADDRESS, memory_address, 0)
 
         move_value = MUX16(register_value, memory_value, source_is_pointer)
 
@@ -149,7 +149,7 @@ class CPU:
         memory_address = MUX4WAY16(a_value, b_value, c_value, d_value, target_address[2:])
 
         # Load moved value
-        self.ram(move_value, memory_address, selected_target[1])
+        self.ram_bus(move_value, memory_address, selected_target[1])
         self.a(move_value, selected_register[0])
         self.b(move_value, selected_register[1])
         self.c(move_value, selected_register[2])
@@ -165,6 +165,9 @@ class CPU:
         self.pc(next_pc_address, load, inc, reset)
         return 0
 
+    def ram_bus(self, value, address, load):
+        return self.ram(value, address[1:], load)
+
     def tick(self):
         self.a.tick()
         self.b.tick()
@@ -172,3 +175,5 @@ class CPU:
         self.d.tick()
 
         self.pc.tick()
+
+        self.ram.tick()

@@ -8,6 +8,7 @@ from computer.utility.numbers import bin_to_dec
 from computer.chips.tests import (ZEROS, INT_ONE, INT_TWO, INT_THREE,
                                   INT_NEG_ONE, ALTERNATING_ZERO_ONE)
 
+UNUSED = bitarray(16)
 # instruction: ajms oooo prrr prrr
 
 # Not tested opcodes
@@ -54,28 +55,20 @@ pcp_address = bitarray('1101')  # pc register +1 as pointer
 
 
 class MockRam:
-    def __init__(self, instructions):
-        self.memory = {i: instruction for i, instruction in enumerate(instructions)}
-
-        self.values = []
-        self.addresses = []
-        self.loads = []
-
-        self.ticked = 0
+    def __init__(self):
+        self.memory = {}
+        self.next_memory = {}
 
     def __call__(self, value, address, load):
-        self.values.append(value)
-        self.addresses.append(address)
-        self.values.append(load)
-
-        i = bin_to_dec(address)
+        i = bin_to_dec(bitarray('0') + address)
         out = self.memory.get(i, bitarray(16))
         if load:
-            self.memory[i] = value
+            self.next_memory[i] = value
         return out
 
     def tick(self):
-        self.ticked += 1
+        for key in self.next_memory:
+            self.memory[key] = self.next_memory[key]
 
 
 class MockHardDisk:
@@ -88,6 +81,17 @@ def register_map(cpu):
 
 class TestCPU:
 
+    @pytest.fixture
+    def cpu(self):
+        ram = MockRam()
+        hdd = MockHardDisk()
+        return CPU(ram, hdd)
+
+    @staticmethod
+    def load_instructions(ram, instructions):
+        for i, instruction in enumerate(instructions):
+            ram.memory[i] = instruction
+
     values = [ZEROS, INT_ONE, INT_TWO, ALTERNATING_ZERO_ONE]
 
     register_addresses = [('a', a_address),
@@ -98,30 +102,22 @@ class TestCPU:
 
     @pytest.mark.parametrize('register, address_1', register_addresses)
     @pytest.mark.parametrize('value', values)
-    def test_move_constant_to_register(self, value, register, address_1):
+    def test_move_constant_to_register(self, cpu, value, register, address_1):
         instructions = [move_opcode + alu_pass + address_1 + pcp_address,
                         value]
-
-        ram = MockRam(instructions)
-        hdd = MockHardDisk()
-
-        cpu = CPU(ram, hdd)
+        self.load_instructions(cpu.ram, instructions)
 
         assert cpu() == 0
         cpu.tick()
 
         assert register_map(cpu)[register].value == value
 
-    def test_move_two_constants_to_register(self):
+    def test_move_two_constants_to_register(self, cpu):
         value_1 = INT_TWO
         value_2 = INT_THREE
         instructions = [move_opcode + alu_pass + a_address + pcp_address, value_1,
                         move_opcode + alu_pass + b_address + pcp_address, value_2]
-
-        ram = MockRam(instructions)
-        hdd = MockHardDisk()
-
-        cpu = CPU(ram, hdd)
+        self.load_instructions(cpu.ram, instructions)
 
         assert cpu() == 0
         cpu.tick()
@@ -143,16 +139,14 @@ class TestCPU:
                              (b_address, d_address, 'd')]
 
     @pytest.mark.parametrize('source_address, target_address, target_register', source_target_reg_reg)
-    def test_move_from_register_to_register(self, source_address, target_address, target_register):
+    def test_move_from_register_to_register(self, cpu, source_address, target_address, target_register):
         value = INT_TWO
 
         instructions = [move_opcode + alu_pass + source_address + pcp_address, value,
                         move_opcode + alu_pass + target_address + source_address,
                         ]
 
-        ram = MockRam(instructions)
-        hdd = MockHardDisk()
-        cpu = CPU(ram, hdd)
+        self.load_instructions(cpu.ram, instructions)
 
         cpu()
         cpu.tick()
@@ -162,7 +156,7 @@ class TestCPU:
 
         assert register_map(cpu)[target_register].value == value
 
-    def test_move_from_register_to_register_twice(self):
+    def test_move_from_register_to_register_twice(self, cpu):
         value = INT_TWO
         source_address = a_address
         target_1 = b_address
@@ -173,9 +167,7 @@ class TestCPU:
                         move_opcode + alu_pass + target_2 + source_address,
                         ]
 
-        ram = MockRam(instructions)
-        hdd = MockHardDisk()
-        cpu = CPU(ram, hdd)
+        self.load_instructions(cpu.ram, instructions)
 
         cpu()
         cpu.tick()
@@ -199,8 +191,7 @@ class TestCPU:
                              ]
 
     @pytest.mark.parametrize('constant_reg, reg_address, reg_p_address, memory_address', source_target_reg_mem)
-    def test_move_from_register_to_memory(self, constant_reg, reg_address, reg_p_address, memory_address):
-        dec_address = bin_to_dec(memory_address)
+    def test_move_from_register_to_memory(self, cpu, constant_reg, reg_address, reg_p_address, memory_address):
         value = INT_TWO
 
         instructions = [move_opcode + alu_pass + constant_reg + pcp_address, value,
@@ -208,10 +199,7 @@ class TestCPU:
                         move_opcode + alu_pass + reg_p_address + constant_reg
                         ]
 
-        ram = MockRam(instructions)
-        hdd = MockHardDisk()
-
-        cpu = CPU(ram, hdd)
+        self.load_instructions(cpu.ram, instructions)
 
         cpu()
         cpu.tick()
@@ -222,11 +210,9 @@ class TestCPU:
         assert cpu() == 0
         cpu.tick()
 
-        assert ram.memory[dec_address] == value
+        assert cpu.ram_bus(UNUSED, memory_address, 0) == value
 
-    def test_move_from_register_to_memory_twice(self):
-        dec_address_1 = bin_to_dec(self.memory_value_1)
-        dec_address_2 = bin_to_dec(self.memory_value_2)
+    def test_move_from_register_to_memory_twice(self, cpu):
         value = INT_TWO
 
         instructions = [move_opcode + alu_pass + a_address + pcp_address, value,
@@ -236,32 +222,25 @@ class TestCPU:
                         move_opcode + alu_pass + bp_address + a_address
                         ]
 
-        ram = MockRam(instructions)
-        hdd = MockHardDisk()
-
-        cpu = CPU(ram, hdd)
+        self.load_instructions(cpu.ram, instructions)
 
         for i in range(5):
             cpu()
             cpu.tick()
 
-        assert ram.memory[dec_address_1] == value
-        assert ram.memory[dec_address_2] == value
+        assert cpu.ram_bus(UNUSED, self.memory_value_1, 0) == value
+        assert cpu.ram_bus(UNUSED, self.memory_value_2, 0) == value
 
-    def test_move_from_memory_to_register(self):
+    def test_move_from_memory_to_register(self, cpu):
         value = INT_THREE
 
         instructions = [move_opcode + alu_pass + a_address + pcp_address, self.memory_value_1,
                         move_opcode + alu_pass + b_address + ap_address,
                         move_opcode + alu_pass + c_address + ap_address]
 
-        ram = MockRam(instructions)
-        dec_address = bin_to_dec(self.memory_value_1)
-        ram.memory[dec_address] = value
-
-        hdd = MockHardDisk()
-
-        cpu = CPU(ram, hdd)
+        self.load_instructions(cpu.ram, instructions)
+        cpu.ram_bus(value, self.memory_value_1, 1)
+        cpu.ram.tick()
 
         cpu()
         cpu.tick()
@@ -275,21 +254,16 @@ class TestCPU:
         assert cpu.b.value == value
         assert cpu.c.value == value
 
-    def test_move_from_memory_to_memory(self):
+    def test_move_from_memory_to_memory(self, cpu):
         value = INT_NEG_ONE
 
         instructions = [move_opcode + alu_pass + a_address + pcp_address, self.memory_value_1,
                         move_opcode + alu_pass + b_address + pcp_address, self.memory_value_2,
                         move_opcode + alu_pass + bp_address + ap_address,
                         ]
-
-        ram = MockRam(instructions)
-        dec_address = bin_to_dec(self.memory_value_1)
-        ram.memory[dec_address] = value
-
-        hdd = MockHardDisk()
-
-        cpu = CPU(ram, hdd)
+        self.load_instructions(cpu.ram, instructions)
+        cpu.ram_bus(value, self.memory_value_1, 1)
+        cpu.ram.tick()
 
         cpu()
         cpu.tick()
@@ -300,5 +274,4 @@ class TestCPU:
         assert cpu() == 0
         cpu.tick()
 
-        dec_address = bin_to_dec(self.memory_value_2)
-        assert ram.memory[dec_address] == value
+        assert cpu.ram_bus(UNUSED, self.memory_value_1, 0) == value

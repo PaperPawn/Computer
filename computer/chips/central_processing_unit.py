@@ -11,7 +11,6 @@ NULL_ADDRESS = bitarray(16)
 class CPU:
     """
     Registers:
-    # m - memory loader
     a, b, c, d - general purpose
     sp - stack pointer
     pc - program counter
@@ -21,10 +20,7 @@ class CPU:
     Hard Drive
 
     Instruction: 16bit
-    # load instruction: 0xxx xxxx xxxx xxxx
-    #      load 15bit number into register m
 
-    # instruction: 1aj(j/m) (s/o)(ooo) prrr prrr
     instruction: aj(j/m)s oooo prrr prrr
         push
         pop
@@ -51,35 +47,30 @@ class CPU:
 
         When move from 1101 (pc pointer) read from pc+1 and update pc=pc+2 at tick
 
-    # push: lajm sxxx prrr xxxx
     push: ajms xxxx prrr xxxx
         Stack operation: ajms = 0001
         push: s = 1
         Register address: prrr
         push value from prrr to stack
 
-    # pop: lajm sxxx prrr xxxx
     pop: ajms xxxx prrr xxxx
         Stack operation: ajms = 0000
         pop: s = 0
         Register address: prrr
         pop value from stack to prrr
 
-    # arithmetic: lajj oooo prrr prrr, 16 bits
     arithmetic: ajms oooo prrr prrr, 16 bits
         Perform ALU operation: ajms = 1000, 4 bits
         ALU opcode: oooo, 4 bits
         Register adresses; prrrprrr, 8 bits
         Outputs to second register
 
-    # jump: lajj oooo prrr prrr
     jump: ajjs oooo prrr prrr
         jump: ajj = 01x, oooo = xxxx
         jump if zero: ajj = 110, oooo = ALU op
         jump if neg: ajj = 111, oooo = ALU op
         jump to prrr
 
-    # move: lajm xxxx prrr prrr
     move: ajms xxxx prrr prrr
         Perform move operation: ajms = 0010, 4 bits
         Register adresses; prrrprrr, 8 bits
@@ -129,12 +120,13 @@ class CPU:
         pc_value = self.pc(NULL_ADDRESS, 0, 0, 0)
         instruction = self.ram(NULL_ADDRESS, pc_value, 0)
 
-        # MOVE source
         a_value = self.a(NULL_ADDRESS, 0)
         b_value = self.b(NULL_ADDRESS, 0)
         c_value = self.c(NULL_ADDRESS, 0)
         d_value = self.d(NULL_ADDRESS, 0)
 
+        # MOVE
+        # MOVE source
         source_address = instruction[12:]
         source_is_pointer = source_address[0]
         source_is_pc = source_address[1]

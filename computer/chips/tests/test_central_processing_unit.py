@@ -11,22 +11,29 @@ from computer.chips.tests import (ZEROS, INT_ONE, INT_TWO, INT_THREE,
 # instruction: ajms oooo prrr prrr
 
 # Not tested opcodes
-#    ajm(d/s)    operation
-#    0000        pop
-#    0001        push
-#    0011        hdd op
-#    0100        jump
-#    0101        (jump, push address?)
-#    0110        (jump)
-#    0111        (jump, push address?)
-#    1000        ALU op
-#    1001        (push ALU op)
-#    1010        (ALU op)
-#    1011        (ALU op)
-#    1100        jump if zero
-#    1101        (jump if zero, push zero?) (reset?)
-#    1110        jump if neg
-#    1111        (jump if neg, push neg number?) (shutdown)
+# opcode      operation
+# 0000        pop
+# 0001        push
+# 0011        hdd op
+# 0100        jump
+# 0101        (jump, push address?)
+# 0110        (jump)
+# 0111        (jump, push address?)
+# 1000        ALU op
+# 1001        (push ALU op)
+# 1010        (ALU op)
+# 1011        (ALU op)
+# 1100        jump if zero
+# 1101        (jump if zero, push zero?) (reset?)
+# 1110        jump if neg
+# 1111        (jump if neg, push neg number?) (shutdown?)
+
+# TODO:
+# Stack operations
+# ALU operations
+# Jump operations
+# HDD operations
+# reset, shutdown
 
 move_opcode = bitarray('0010')
 
@@ -79,7 +86,7 @@ def register_map(cpu):
     return {'a': cpu.a, 'b': cpu.b, 'c': cpu.c, 'd': cpu.d}
 
 
-class TestCpu:
+class TestCPU:
 
     values = [ZEROS, INT_ONE, INT_TWO, ALTERNATING_ZERO_ONE]
 

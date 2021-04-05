@@ -2,18 +2,10 @@ from bitarray import bitarray
 
 
 def bin_to_dec(bits):
-    out = 0
-    for i, bit in enumerate(bits):
-        out += 2 ** (15 - i) * bit
-    return out
+    return int.from_bytes(bits.tobytes(), 'big')
 
 
 def dec_to_bin(dec):
-    out = bitarray('0'*16)
-
-    for i in range(16):
-        bit_number = 2 ** (15 - i)
-        if dec >= bit_number:
-            dec -= bit_number
-            out[i] = 1
+    out = bitarray()
+    out.frombytes(dec.to_bytes(2, 'big'))
     return out

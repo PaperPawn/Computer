@@ -1,7 +1,8 @@
 from bitarray import bitarray
 
-from computer.chips.logic_gates import NOT, DMUX
-from computer.chips.logic_gates_multi_way import MUX16, MUX4WAY16, DMUX4WAY
+from computer.chips.logic_gates import NOT, AND, MUX, DMUX
+from computer.chips.logic_gates_16bit import NOT16
+from computer.chips.logic_gates_multi_way import MUX16, MUX4WAY16, MUX8WAY16, DMUX4WAY, DMUX8WAY
 from computer.chips.arithmetic import INC16
 from computer.chips.memory import Register, PC
 
@@ -21,7 +22,7 @@ class CPU:
 
     Instruction: 16bit
 
-    instruction: aj(j/m)s oooo prrr prrr
+    instruction: oooo aaaa prrr prrr
         push
         pop
         arithmetic (add, sub, neg...):
@@ -47,15 +48,15 @@ class CPU:
 
         When move from 1101 (pc pointer) read from pc+1 and update pc=pc+2 at tick
 
-    push: ajms xxxx prrr xxxx
+    push: ajms oxxx 1100 prrr
         Stack operation: ajms = 0001
-        push: s = 1
+        push: s = 1, o = 0
         Register address: prrr
         push value from prrr to stack
 
-    pop: ajms xxxx prrr xxxx
+    pop: ajms oxxx prrr 1100
         Stack operation: ajms = 0000
-        pop: s = 0
+        pop: s = 1, o = 1
         Register address: prrr
         pop value from stack to prrr
 
@@ -71,13 +72,15 @@ class CPU:
         jump if neg: ajj = 111, oooo = ALU op
         jump to prrr
 
-    move: ajms xxxx prrr prrr
+    move: ajms oooo prrr prrr
         Perform move operation: ajms = 0010, 4 bits
+        Move opcode: oooo = 0000
         Register adresses; prrrprrr, 8 bits
         move from 2nd to first prrr
 
-    hdd: ajmd swxx prrr prrr
-        Perform HDD operation ajmd = 0011, 4 bits
+    hdd: ajmd hswx prrr prrr
+        Perform Move operation ajmd = 0010, 4 bits
+        Move opcode: oooo = 1swx
         Set sector: s, 1 bit
         Set write: w, 1 bit
         HDD address: first prrr
@@ -86,19 +89,18 @@ class CPU:
     reset
     shutdown
 
-
-    ajm(d/s)    operation
-    0000        pop
-    0001        push
+    opcode      operation
+    0000        (reset?)
+    0001        (shutdown?)
     0010        move
-    0011        hdd op
+    0011        stack op (push/pop) #hdd op
     0100        jump
     0101        (jump, push address?)
     0110        (jump)
     0111        (jump, push address?)
-    1000        ALU op
+    1000        ALU op (no move?)
     1001        (push ALU op)
-    1010        (ALU op)
+    1010        (ALU op) (with move?)
     1011        (ALU op)
     1100        jump if zero
     1101        (jump if zero, push zero?) (reset?)
@@ -114,6 +116,7 @@ class CPU:
         self.c = Register()
         self.d = Register()
 
+        self.sp = Register()
         self.pc = PC()
 
     def __call__(self):
@@ -125,28 +128,38 @@ class CPU:
         c_value = self.c(NULL_ADDRESS, 0)
         d_value = self.d(NULL_ADDRESS, 0)
 
+        sp_value = self.sp(NULL_ADDRESS, 0)
+
+        opcode = instruction[:4]
+        secondary_opcode = instruction[4:8]
+
+        is_pop = AND(opcode[3], secondary_opcode[0])
+        sp_pop = NOT16(INC16(NOT16(sp_value)))
+        used_sp_value = MUX16(sp_value, sp_pop, is_pop)
+
         # MOVE
-        # MOVE source
+        # source value
         source_address = instruction[12:]
-        source_is_pointer = source_address[0]
-        source_is_pc = source_address[1]
 
-        # MOVE value
-        register_value = MUX4WAY16(a_value, b_value, c_value, d_value, source_address[2:])
         constant_address = INC16(pc_value)
+        register_value = MUX8WAY16(a_value, b_value, c_value, d_value,
+                                   used_sp_value, constant_address, NULL_ADDRESS, NULL_ADDRESS,
+                                   source_address[1:])
 
-        memory_address = MUX16(register_value, constant_address, source_is_pc)
-        memory_value = self.ram_bus(NULL_ADDRESS, memory_address, 0)
+        memory_value = self.ram_bus(NULL_ADDRESS, register_value, 0)
 
+        source_is_pointer = source_address[0]
         move_value = MUX16(register_value, memory_value, source_is_pointer)
 
-        # MOVE target
+        # target
         target_address = instruction[8:12]
         target_is_pointer = target_address[0]
 
         selected_target = DMUX(1, target_is_pointer)
-        selected_register = DMUX4WAY(selected_target[0], target_address[2:])
-        memory_address = MUX4WAY16(a_value, b_value, c_value, d_value, target_address[2:])
+        selected_register = DMUX8WAY(selected_target[0], target_address[1:])
+        memory_address = MUX8WAY16(a_value, b_value, c_value, d_value,
+                                   sp_value, NULL_ADDRESS, NULL_ADDRESS, NULL_ADDRESS,
+                                   target_address[1:])
 
         # Load moved value
         self.ram_bus(move_value, memory_address, selected_target[1])
@@ -155,11 +168,17 @@ class CPU:
         self.c(move_value, selected_register[2])
         self.d(move_value, selected_register[3])
 
+        # Update stack pointer
+        sp_push = INC16(sp_value)
+        updated_sp = MUX16(sp_push, sp_pop, secondary_opcode[0])
+        new_sp_value = MUX16(move_value, updated_sp, opcode[3])
+        load_sp = MUX(selected_register[4], 1, opcode[3])
+        self.sp(new_sp_value, load_sp)
+
         # Set PC
         next_pc_address = INC16(constant_address)
         select_pc_load = DMUX4WAY(1, source_address[:2])
-
-        load = select_pc_load[3]
+        load = AND(select_pc_load[3], source_address[3])
         inc = NOT(load)
         reset = 0
         self.pc(next_pc_address, load, inc, reset)
@@ -174,6 +193,7 @@ class CPU:
         self.c.tick()
         self.d.tick()
 
+        self.sp.tick()
         self.pc.tick()
 
         self.ram.tick()

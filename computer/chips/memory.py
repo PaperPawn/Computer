@@ -46,7 +46,7 @@ class RAM8X:
         ram_type = self.get_ram_type()
         self.rams = [(ram_type()) for _ in range(8)]
 
-    def __call__slow(self, value, address, load):
+    def _call_slower(self, value, address, load):
         dmux_load = DMUX8WAY(load, address)
 
         out = []
@@ -56,12 +56,13 @@ class RAM8X:
         return MUX8WAY16(out[0], out[1], out[2], out[3],
                          out[4], out[5], out[6], out[7], address)
 
-    def __call__(self, value, address, load):
+    def _call_faster(self, value, address, load):
         dmux_load = DMUX8WAY(1, address)
 
         i = dmux_load.index(1)
 
         return self.rams[i](value, address[3:], load)
+    __call__ = _call_faster
 
     def tick(self):
         for ram in self.rams:

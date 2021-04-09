@@ -40,18 +40,18 @@ class TestAdd16:
     INT_B = bitarray('0000000011001011')
     INT_C = bitarray('0000001110011101')
 
-    truth_table = [(ZEROS, ZEROS, ZEROS),
-                   (ZEROS, ONES, ONES),
-                   (ONES, ZEROS, ONES),
-                   (ONES, ONES, INT_OVERFLOW),
-                   (ZEROS, INT_ONE, INT_ONE),
-                   (INT_ONE, INT_ONE, INT_TWO),
-                   (INT_TWO, INT_ONE, INT_THREE),
-                   (INT_A, INT_B, INT_C)]
+    truth_table = [(ZEROS, ZEROS, ZEROS, 0),
+                   (ZEROS, ONES, ONES, 0),
+                   (ONES, ZEROS, ONES, 0),
+                   (ONES, ONES, INT_OVERFLOW, 1),
+                   (ZEROS, INT_ONE, INT_ONE, 0),
+                   (INT_ONE, INT_ONE, INT_TWO, 0),
+                   (INT_TWO, INT_ONE, INT_THREE, 0),
+                   (INT_A, INT_B, INT_C, 0)]
 
-    @pytest.mark.parametrize('a, b, expected', truth_table)
-    def test_add16(self, a, b, expected):
-        assert ADD16(a, b) == expected
+    @pytest.mark.parametrize('a, b, expected_out, expected_carry', truth_table)
+    def test_add16(self, a, b, expected_out, expected_carry):
+        assert ADD16(a, b) == (expected_out, expected_carry)
 
 
 class TestInc16:
@@ -60,14 +60,14 @@ class TestInc16:
     INT_Ap0 = bitarray('0000001011010010')
     INT_Ap1 = bitarray('0000001011010011')
     INT_Ap2 = bitarray('0000001011010100')
-    truth_table = [(ZEROS, INT_ONE),
-                   (INT_ONE, INT_TWO),
-                   (INT_32767, INT_32768),
-                   (ONES, ZEROS),
-                   (INT_Ap0, INT_Ap1),
-                   (INT_Ap1, INT_Ap2)
+    truth_table = [(ZEROS, INT_ONE, 0),
+                   (INT_ONE, INT_TWO, 0),
+                   (INT_32767, INT_32768, 0),
+                   (ONES, ZEROS, 1),
+                   (INT_Ap0, INT_Ap1, 0),
+                   (INT_Ap1, INT_Ap2, 0),
                    ]
 
-    @pytest.mark.parametrize('a, expected', truth_table)
-    def test_inc16(self, a, expected):
-        assert INC16(a) == expected
+    @pytest.mark.parametrize('a, expected_out, expected_carry', truth_table)
+    def test_inc16(self, a, expected_out, expected_carry):
+        assert INC16(a) == (expected_out, expected_carry)

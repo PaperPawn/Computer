@@ -1,9 +1,10 @@
 from bitarray import bitarray
 
-from computer.chips.logic_gates import NOT, AND, MUX, DMUX
+from computer.chips.logic_gates import NOT, AND, OR, MUX, DMUX
 from computer.chips.logic_gates_16bit import NOT16
 from computer.chips.logic_gates_multi_way import MUX16, MUX4WAY16, MUX8WAY16, DMUX4WAY, DMUX8WAY
 from computer.chips.arithmetic import INC16
+from computer.chips.arithmetic_logic_unit import ALU
 from computer.chips.memory import Register, PC
 
 NULL_ADDRESS = bitarray(16)
@@ -33,7 +34,6 @@ class CPU:
         hdd op
         reset
         shutdown
-        call?
 
     Register address: prrr 4 bits
         Value (0) or pointer (1): p, 1 bit
@@ -90,22 +90,22 @@ class CPU:
     shutdown
 
     opcode      operation
-    0000        (reset?)
-    0001        (shutdown?)
-    0010        move
-    0011        stack op (push/pop) #hdd op
+    0000        reset
+    0001        shutdown
+    0010        move (possible hdd op)
+    0011        stack op (push/pop)
     0100        jump
-    0101        (jump, push address?)
+    0101        (jump)
     0110        (jump)
-    0111        (jump, push address?)
-    1000        ALU op (no move?)
-    1001        (push ALU op)
-    1010        (ALU op) (with move?)
+    0111        (jump)
+    1000        ALU op
+    1001        (ALU op)
+    1010        (ALU op)
     1011        (ALU op)
     1100        jump if zero
-    1101        (jump if zero, push zero?) (reset?)
+    1101        jump if overflow
     1110        jump if neg
-    1111        (jump if neg, push neg number?) (shutdown)
+    1111        (jump if neg and overflow?)
     """
 
     def __init__(self, ram, hdd):
@@ -134,26 +134,33 @@ class CPU:
         secondary_opcode = instruction[4:8]
 
         is_pop = AND(opcode[3], secondary_opcode[0])
-        sp_pop = INC16(sp_value)
+        sp_pop, _ = INC16(sp_value)
         used_sp_value = MUX16(sp_value, sp_pop, is_pop)
 
-        # MOVE
         # source value
         source_address = instruction[12:]
 
-        constant_address = INC16(pc_value)
-        register_value = MUX8WAY16(a_value, b_value, c_value, d_value,
+        constant_address, _ = INC16(pc_value)
+        source_register_value = MUX8WAY16(a_value, b_value, c_value, d_value,
                                    used_sp_value, constant_address, NULL_ADDRESS, NULL_ADDRESS,
                                    source_address[1:])
 
-        memory_value = self.ram_bus(NULL_ADDRESS, register_value, 0)
+        source_memory_value = self.ram_bus(NULL_ADDRESS, source_register_value, 0)
 
         source_is_pointer = source_address[0]
-        move_value = MUX16(register_value, memory_value, source_is_pointer)
+        source_value = MUX16(source_register_value, source_memory_value, source_is_pointer)
 
         # target
         target_address = instruction[8:12]
         target_is_pointer = target_address[0]
+
+        target_register_value = MUX4WAY16(a_value, b_value, c_value, d_value, target_address[2:])
+        target_memory_value = self.ram_bus(NULL_ADDRESS, target_register_value, 0)
+        target_value = MUX16(target_register_value, target_memory_value, target_is_pointer)
+
+        # ALU op
+        alu_result, is_zero, is_neg, overflow = ALU(target_value, source_value, secondary_opcode)
+        result = MUX16(source_value, alu_result, opcode[0])
 
         selected_target = DMUX(1, target_is_pointer)
         selected_register = DMUX8WAY(selected_target[0], target_address[1:])
@@ -162,23 +169,28 @@ class CPU:
                                    target_address[1:])
 
         # Load moved value
-        self.ram_bus(move_value, memory_address, selected_target[1])
-        self.a(move_value, selected_register[0])
-        self.b(move_value, selected_register[1])
-        self.c(move_value, selected_register[2])
-        self.d(move_value, selected_register[3])
+        load = OR(opcode[0], opcode[2])
+        self.ram_bus(result, memory_address, AND(selected_target[1], load))
+        self.a(result, AND(selected_register[0], load))
+        self.b(result, AND(selected_register[1], load))
+        self.c(result, AND(selected_register[2], load))
+        self.d(result, AND(selected_register[3], load))
 
         # Update stack pointer
-        sp_push = NOT16(INC16(NOT16(sp_value)))
+        sp_push, _ = INC16(NOT16(sp_value))
+        sp_push = NOT16(sp_push)
         updated_sp = MUX16(sp_push, sp_pop, secondary_opcode[0])
-        new_sp_value = MUX16(move_value, updated_sp, opcode[3])
+        new_sp_value = MUX16(result, updated_sp, opcode[3])
         load_sp = MUX(selected_register[4], 1, opcode[3])
         self.sp(new_sp_value, load_sp)
 
         # Set PC
-        next_pc_address = INC16(constant_address)
+        inc_pc_address, _ = INC16(constant_address)
+
+        next_pc_address = MUX16(inc_pc_address, result, opcode[1])
         select_pc_load = DMUX4WAY(1, source_address[:2])
-        load = AND(select_pc_load[3], source_address[3])
+
+        load = OR(AND(select_pc_load[3], source_address[3]), opcode[1])
         inc = NOT(load)
         reset = 0
         self.pc(next_pc_address, load, inc, reset)

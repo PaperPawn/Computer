@@ -103,7 +103,7 @@ class PC:
     def __call__(self, value, load, inc, reset):
         out = self.register(value, load)
 
-        out_inc = INC16(out)
+        out_inc, _ = INC16(out)
         self.register(out_inc, inc)
         self.register(self.init_value, reset)
         return out

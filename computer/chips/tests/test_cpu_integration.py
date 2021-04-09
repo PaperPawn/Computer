@@ -29,3 +29,11 @@ class TestCPUMoveIntegration(TestCPUIntegration, test_cpu.TestCPUMove):
 
 class TestCPUStackIntegration(TestCPUIntegration, test_cpu.TestCPUStack):
     pass
+
+
+class TestCPUALUIntegration(TestCPUIntegration, test_cpu.TestCPUALU):
+    pass
+
+
+class TestCPUJumpIntegration(TestCPUIntegration, test_cpu.TestCPUJump):
+    pass

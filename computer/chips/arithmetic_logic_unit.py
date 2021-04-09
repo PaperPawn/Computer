@@ -1,6 +1,6 @@
 from bitarray import bitarray
 
-from computer.chips.logic_gates import NOT, OR
+from computer.chips.logic_gates import NOT, AND, OR, MUX
 from computer.chips.logic_gates_16bit import NOT16, AND16, OR16, XOR16
 from computer.chips.logic_gates_multi_way import OR8WAY, MUX16, MUX4WAY16
 
@@ -18,7 +18,7 @@ def ALU(a, b, opcode):
     Arithmetic
     Operation       opcode  alt
     Add: a+b        0100    0110
-    Subtract: b-a   0101    0111
+    Subtract: a-b   0101    0111
     Negate: -a      0001
     Increment: a+1  0010
     Decrement: a-1  0011
@@ -45,17 +45,19 @@ def ALU(a, b, opcode):
     bitflip = NOT16(a)
 
     # Arithmetic
-    neg_a = INC16(bitflip)
+    neg_a, dec_carry = INC16(bitflip)
     a1 = MUX16(a, neg_a, opcode[3])
 
-    inc = INC16(a1)
-    dec = INC16(NOT16(inc))
+    inc, inc_carry = INC16(a1)
+    dec, _ = INC16(NOT16(inc))
     inc_or_dec = MUX16(inc, dec, opcode[3])
 
-    add = ADD16(a1, b)
+    add, add_carry = ADD16(a1, b)
+    sub, _ = INC16(NOT16(add))
+    add_or_sub = MUX16(add, sub, opcode[3])
 
     pass_through_or_incdec = MUX16(a1, inc_or_dec, opcode[2])
-    arithmetic = MUX16(pass_through_or_incdec, add, opcode[1])
+    arithmetic = MUX16(pass_through_or_incdec, add_or_sub, opcode[1])
 
     # Logical
     a_log = MUX16(a, bitflip, opcode[3])
@@ -68,4 +70,10 @@ def ALU(a, b, opcode):
     # Set control bits
     is_zero = NOT(OR(OR8WAY(out[0:8]), OR8WAY(out[8:16])))
     is_neg = out[0]
-    return out, is_zero, is_neg
+
+    # carry = MUX(0, inc_carry, opcode[2])
+    carry_2 = MUX(0, add_carry, opcode[1])
+    carry_1 = MUX(carry_2, inc_carry, AND(opcode[2], NOT(opcode[3])))
+    carry_a = MUX(carry_1, dec_carry, AND(opcode[2], opcode[3]))
+    carry = MUX(carry_a, 0, opcode[0])
+    return out, is_zero, is_neg, carry

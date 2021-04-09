@@ -21,7 +21,7 @@ def ADD16(a, b):
     out[-1], carry = half_adder(a[-1], b[-1])
     for i in range(2, 17):
         out[-i], carry = full_adder(a[-i], b[-i], carry)
-    return out
+    return out, carry
 
 
 def INC16(a):
@@ -31,4 +31,4 @@ def INC16(a):
     carry = a[-1]
     for i in range(2, 17):
         out[-i], carry = half_adder(a[-i], carry)
-    return out
+    return out, carry

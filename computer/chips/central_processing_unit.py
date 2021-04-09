@@ -134,7 +134,7 @@ class CPU:
         secondary_opcode = instruction[4:8]
 
         is_pop = AND(opcode[3], secondary_opcode[0])
-        sp_pop = NOT16(INC16(NOT16(sp_value)))
+        sp_pop = INC16(sp_value)
         used_sp_value = MUX16(sp_value, sp_pop, is_pop)
 
         # MOVE
@@ -169,7 +169,7 @@ class CPU:
         self.d(move_value, selected_register[3])
 
         # Update stack pointer
-        sp_push = INC16(sp_value)
+        sp_push = NOT16(INC16(NOT16(sp_value)))
         updated_sp = MUX16(sp_push, sp_pop, secondary_opcode[0])
         new_sp_value = MUX16(move_value, updated_sp, opcode[3])
         load_sp = MUX(selected_register[4], 1, opcode[3])

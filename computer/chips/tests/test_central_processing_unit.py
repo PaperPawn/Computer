@@ -297,10 +297,13 @@ class TestCPUMove(TestCPU):
 
 
 class TestCPUStack(TestCPU):
-    def test_push_constant_twice(self, cpu):
-        stack_frame = dec_to_bin(100)
-        stack_frame_p1 = dec_to_bin(101)
-        stack_frame_p2 = dec_to_bin(102)
+    stack_frames = [1024, 2048]
+
+    @pytest.mark.parametrize('stack_frame_dec', stack_frames)
+    def test_push_constant_twice(self, cpu, stack_frame_dec):
+        stack_frame = dec_to_bin(stack_frame_dec)
+        stack_frame_p1 = dec_to_bin(stack_frame_dec - 1)
+        stack_frame_p2 = dec_to_bin(stack_frame_dec - 2)
         value_1 = INT_ONE
         value_2 = INT_TWO
 
@@ -325,8 +328,60 @@ class TestCPUStack(TestCPU):
         assert cpu.ram_bus(UNUSED, stack_frame, 0) == value_1
         assert cpu.ram_bus(UNUSED, stack_frame_p1, 0) == value_2
 
-    def test_push_then_pop_constant(self, cpu):
-        stack_frame = dec_to_bin(100)
+    @pytest.mark.parametrize('stack_frame_dec', stack_frames)
+    def test_push_from_register(self, cpu, stack_frame_dec):
+        stack_frame = dec_to_bin(stack_frame_dec)
+        stack_frame_p1 = dec_to_bin(stack_frame_dec - 1)
+        value_1 = INT_ONE
+
+        instructions = [move_opcode + sp_address + pcp_address, stack_frame,
+                        move_opcode + a_address + pcp_address, value_1,
+                        push_opcode + spp_address + a_address]
+        self.load_instructions(cpu.ram, instructions)
+
+        cpu()
+        cpu.tick()
+
+        cpu()
+        cpu.tick()
+
+        assert cpu() == 0
+        cpu.tick()
+
+        assert cpu.sp.value == stack_frame_p1
+        assert cpu.ram_bus(UNUSED, stack_frame, 0) == value_1
+
+    @pytest.mark.parametrize('stack_frame_dec', stack_frames)
+    def test_push_from_memory(self, cpu, stack_frame_dec):
+        stack_frame = dec_to_bin(stack_frame_dec)
+        stack_frame_p1 = dec_to_bin(stack_frame_dec - 1)
+        value_1 = INT_ONE
+        memory_address = dec_to_bin(20)
+
+        instructions = [move_opcode + sp_address + pcp_address, stack_frame,
+                        move_opcode + a_address + pcp_address, memory_address,
+                        move_opcode + ap_address + pcp_address, value_1,
+                        push_opcode + spp_address + ap_address]
+        self.load_instructions(cpu.ram, instructions)
+
+        cpu()
+        cpu.tick()
+
+        cpu()
+        cpu.tick()
+
+        cpu()
+        cpu.tick()
+
+        assert cpu() == 0
+        cpu.tick()
+
+        assert cpu.sp.value == stack_frame_p1
+        assert cpu.ram_bus(UNUSED, memory_address, 0) == value_1
+
+    @pytest.mark.parametrize('stack_frame_dec', stack_frames)
+    def test_push_constant_then_pop_to_register(self, cpu, stack_frame_dec):
+        stack_frame = dec_to_bin(stack_frame_dec)
         value_1 = INT_ONE
 
         instructions = [move_opcode + sp_address + pcp_address, stack_frame,
@@ -346,10 +401,37 @@ class TestCPUStack(TestCPU):
         assert cpu.sp.value == stack_frame
         assert cpu.a.value == value_1
 
-    def test_push_twice_then_pop_twice(self, cpu):
-        stack_frame = dec_to_bin(100)
-        stack_frame_p1 = dec_to_bin(101)
-        # stack_frame_p2 = dec_to_bin(102)
+    @pytest.mark.parametrize('stack_frame_dec', stack_frames)
+    def test_push_constant_then_pop_to_memory(self, cpu, stack_frame_dec):
+        stack_frame = dec_to_bin(stack_frame_dec)
+        value_1 = INT_ONE
+        memory_address = dec_to_bin(10)
+
+        instructions = [move_opcode + sp_address + pcp_address, stack_frame,
+                        move_opcode + a_address + pcp_address, memory_address,
+                        push_opcode + spp_address + pcp_address, value_1,
+                        pop_opcode + ap_address + spp_address]
+        self.load_instructions(cpu.ram, instructions)
+
+        cpu() == 0
+        cpu.tick()
+
+        cpu() == 0
+        cpu.tick()
+
+        assert cpu() == 0
+        cpu.tick()
+
+        assert cpu() == 0
+        cpu.tick()
+
+        assert cpu.sp.value == stack_frame
+        assert cpu.ram_bus(UNUSED, memory_address, 0) == value_1
+
+    @pytest.mark.parametrize('stack_frame_dec', stack_frames)
+    def test_push_twice_then_pop_twice(self, cpu, stack_frame_dec):
+        stack_frame = dec_to_bin(stack_frame_dec)
+        stack_frame_p1 = dec_to_bin(stack_frame_dec - 1)
         value_1 = INT_ONE
         value_2 = INT_TWO
 

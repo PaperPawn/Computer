@@ -2,7 +2,8 @@ import pytest
 
 from computer.chips.central_processing_unit import CPU
 from computer.chips.memory import RAM32K
-from computer.chips.tests.test_central_processing_unit import TestCPUMove, TestCPUStack, MockHardDisk
+
+from computer.chips.tests import test_central_processing_unit as test_cpu
 
 from computer.utility.numbers import dec_to_bin
 
@@ -11,7 +12,7 @@ class TestCPUIntegration:
     @pytest.fixture
     def cpu(self):
         ram = RAM32K()
-        hdd = MockHardDisk()
+        hdd = test_cpu.MockHardDisk()
         return CPU(ram, hdd)
 
     @staticmethod
@@ -22,9 +23,9 @@ class TestCPUIntegration:
         ram.tick()
 
 
-class TestCPUMoveIntegration(TestCPUIntegration, TestCPUMove):
+class TestCPUMoveIntegration(TestCPUIntegration, test_cpu.TestCPUMove):
     pass
 
 
-class TestCPUStackIntegration(TestCPUIntegration, TestCPUStack):
+class TestCPUStackIntegration(TestCPUIntegration, test_cpu.TestCPUStack):
     pass

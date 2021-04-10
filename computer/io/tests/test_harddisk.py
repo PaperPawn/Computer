@@ -15,30 +15,34 @@ class TestHardDisk:
     def folder(self):
         return r'D:\Programmering\python\computer\computer\io\tests\data'
 
+    @pytest.fixture
+    def hdd(self):
+        return HardDisk()
+
     files = [('test_16bits.bin', bitarray('1001000010001011')),
              ('test_16bits_zeros.bin', bitarray('0'*16))]
 
     @pytest.mark.parametrize('file_name, expected', files)
-    def test_load_disk(self, folder, file_name, expected):
+    def test_load_disk(self, hdd, folder, file_name, expected):
         file_path = os.path.join(folder, file_name)
-        hd = HardDisk(file_path)
+        hdd.load_data(file_path)
 
-        assert hd.data == expected
+        assert hdd.data == expected
 
     @pytest.mark.parametrize('file_name, expected', files)
-    def test_read(self, folder, file_name, expected):
+    def test_read(self, hdd, folder, file_name, expected):
         file_path = os.path.join(folder, file_name)
-        hd = HardDisk(file_path)
+        hdd.load_data(file_path)
 
         address = bitarray('0'*16)
         select_sector = 1
         value = UNUSED
         write = 0
-        hd(address, select_sector, value, write)
+        hdd(address, select_sector, value, write)
 
-        hd.tick()
+        hdd.tick()
         select_sector = 0
-        assert hd(address, select_sector, value, write) == expected
+        assert hdd(address, select_sector, value, write) == expected
 
     read = [(ZEROS, ZEROS, bitarray('1011000011010100')),
             (ZEROS, INT_ONE, bitarray('0000001000010110')),
@@ -46,21 +50,21 @@ class TestHardDisk:
             (INT_ONE, INT_ONE, bitarray('0000000000000000'))]
 
     @pytest.mark.parametrize('sector_address, data_address, expected', read)
-    def test_read_sector(self, folder, sector_address, data_address, expected):
+    def test_read_sector(self, hdd, folder, sector_address, data_address, expected):
         file_name = 'test_2sectors.bin'
         file_path = os.path.join(folder, file_name)
 
-        hd = HardDisk(file_path)
+        hdd.load_data(file_path)
 
         select_sector = 1
         value = UNUSED
         write = 0
-        hd(sector_address, select_sector, value, write)
+        hdd(sector_address, select_sector, value, write)
 
-        hd.tick()
+        hdd.tick()
 
         select_sector = 0
-        assert hd(data_address, select_sector, value, write) == expected
+        assert hdd(data_address, select_sector, value, write) == expected
 
     write = [('test_16bits.bin', ZEROS, ZEROS, INT_ONE, 1, INT_ONE),
              ('test_32bits.bin', ZEROS, ZEROS, INT_ONE, 1, INT_ONE + bitarray('0011000001100101')),
@@ -68,29 +72,29 @@ class TestHardDisk:
              ('test_32bits.bin', ZEROS, INT_ONE, INT_TWO, 0, bitarray('10000000100001100011000001100101'))]
 
     @pytest.mark.parametrize('file_name, sector_address, data_address, value, write, expected', write)
-    def test_write(self, folder, file_name, sector_address, data_address, value, write, expected):
+    def test_write(self, hdd, folder, file_name, sector_address, data_address, value, write, expected):
         file_path = os.path.join(folder, file_name)
 
-        hd = HardDisk(file_path)
+        hdd.load_data(file_path)
         select_sector = 1
-        hd(sector_address, select_sector, UNUSED, 0)
+        hdd(sector_address, select_sector, UNUSED, 0)
 
-        hd.tick()
+        hdd.tick()
 
         select_sector = 0
-        hd(data_address, select_sector, value, write)
+        hdd(data_address, select_sector, value, write)
 
-        assert hd.data == expected
+        assert hdd.data == expected
 
-    def test_write_disk(self, folder):
+    def test_write_disk(self, hdd, folder):
         file_name = 'test_16bits.bin'
         file_path = os.path.join(folder, file_name)
 
         out_file_name = 'test_16bits_out.bin'
         out_file_path = os.path.join(folder, out_file_name)
 
-        hd = HardDisk(file_path)
-        hd.write_data(out_file_path)
+        hdd.load_data(file_path)
+        hdd.write_data(out_file_path)
 
         assert os.path.exists(out_file_path)
         assert filecmp.cmp(file_path, out_file_path)

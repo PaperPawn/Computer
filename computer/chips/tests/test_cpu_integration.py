@@ -37,3 +37,19 @@ class TestCPUALUIntegration(TestCPUIntegration, test_cpu.TestCPUALU):
 
 class TestCPUJumpIntegration(TestCPUIntegration, test_cpu.TestCPUJump):
     pass
+
+
+class TestCPUJumpZeroIntegration(TestCPUIntegration, test_cpu.TestCPUJumpZero):
+    pass
+
+
+class TestCPUJumpNegativeIntegration(TestCPUIntegration, test_cpu.TestCPUJumpNegative):
+    pass
+
+
+class TestCPUJumpOverflowIntegration(TestCPUIntegration, test_cpu.TestCPUJumpOverflow):
+    pass
+
+
+class TestCPUResetIntegration(TestCPUIntegration, test_cpu.TestCPUReset):
+    pass

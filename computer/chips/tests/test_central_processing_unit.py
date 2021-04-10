@@ -3,45 +3,43 @@ import pytest
 from bitarray import bitarray
 
 from computer.chips.central_processing_unit import CPU
+from computer.io.harddisk import HardDisk
 from computer.utility.numbers import bin_to_dec, dec_to_bin
 
 from computer.chips.tests import (ZEROS, INT_ONE, INT_TWO, INT_THREE,
                                   INT_NEG_ONE, ALTERNATING_ZERO_ONE)
 
 UNUSED = bitarray(16)
-# instruction: ajms oooo prrr prrr
-
-# Not tested opcodes
+# Not tested opcodes:
 # opcode      operation
-# 0000        reset
-# 0001        shutdown
-# 0101        (jump)
-# 0110        (jump)
-# 0111        (jump)
-# 1000        ALU op (not all ALU operations tested in CPU)
-# 1001        (ALU op)
-# 1010        (ALU op)
-# 1011        (ALU op)
-# 1100        jump if zero
-# 1101        jump if overflow
-# 1110        jump if neg
-# 1111        (jump if neg and overflow?)
+# 1000        ALU op, without move (not all ALU operations tested in CPU)
+# 1001        (ALU op, no move)
+# 1010        ALU op (not all ALU operations tested in CPU)
+# 1011        (ALU op, to stack?)
+# 1100        (ALU op, with jump?)
+# 1101        (ALU op, with jump?)
+# 1110        (ALU op, with move)
+# 1111        (ALU op, to stack?)
 
 # TODO:
-# Move to stack pointer
 # ALU operations with stack pointer as target
-# Jump operations
-#  Jump if zero
-#  Jump if neg
-#  Jump if overflow
-# HDD operations
-# reset, shutdown
+# Update status register to three single bit registers?
+
+reset_opcode = ZEROS
+shutdown_opcode = bitarray('0001') + bitarray('0'*12)
 
 push_opcode = bitarray('00110000')
 pop_opcode = bitarray('00111000')
+
 move_opcode = bitarray('00100000')
 
-alu_opcode = bitarray('1000')
+hdd_opcode = bitarray('0010')
+hdd_set_sector = bitarray('1100')
+hdd_read = bitarray('1000')
+hdd_write = bitarray('1010')
+
+alu_opcode = bitarray('1010')
+alu_no_move_opcode = bitarray('1000')
 
 alu_pass = bitarray('0000')
 
@@ -56,6 +54,9 @@ alu_inc = bitarray('0010')
 # alu_xor = bitarray('1110')
 
 jump_opcode = bitarray('01000000')
+jump_zero_opcode = bitarray('01100000')
+jump_neg_opcode = bitarray('01010000')
+jump_overflow_opcode = bitarray('01110000')
 
 unused_opcode = bitarray('0000')
 
@@ -66,6 +67,7 @@ c_address = bitarray('0010')
 d_address = bitarray('0011')
 
 sp_address = bitarray('0100')  # stack pointer as value
+pc_address = bitarray('0101')  # pc register +1 as value
 
 # address as pointer
 ap_address = bitarray('1000')
@@ -95,7 +97,13 @@ class MockRam:
 
 
 class MockHardDisk:
-    pass
+    def __call__(self, address, select_sector, value, write):
+        if select_sector or write:
+            raise AssertionError(f'select_sector ({select_sector}) and write ({write}) must be 0')
+        return UNUSED
+
+    def tick(self):
+        pass
 
 
 def register_map(cpu):
@@ -107,8 +115,12 @@ class TestCPU:
     @pytest.fixture
     def cpu(self):
         ram = MockRam()
-        hdd = MockHardDisk()
+        hdd = self.make_hdd()
         return CPU(ram, hdd)
+
+    @staticmethod
+    def make_hdd():
+        return MockHardDisk()
 
     @staticmethod
     def load_instructions(ram, instructions):
@@ -129,8 +141,7 @@ class TestCPUMove(TestCPU):
     @pytest.mark.parametrize('register, address_1', register_addresses)
     @pytest.mark.parametrize('value', values)
     def test_move_constant_to_register(self, cpu, value, register, address_1):
-        instructions = [move_opcode + address_1 + pcp_address,
-                        value]
+        instructions = [move_opcode + address_1 + pc_address, value]
         self.load_instructions(cpu.ram, instructions)
 
         assert cpu() == 0
@@ -138,11 +149,48 @@ class TestCPUMove(TestCPU):
 
         assert register_map(cpu)[register].value == value
 
+    def test_move_constant_as_pointer_to_register(self, cpu):
+        memory_address = dec_to_bin(1024)
+        value = INT_ONE
+        instructions = [move_opcode + a_address + pc_address, memory_address,
+                        move_opcode + ap_address + pc_address, value,
+                        move_opcode + b_address + pcp_address, memory_address
+                        ]
+        self.load_instructions(cpu.ram, instructions)
+
+        assert cpu() == 0
+        cpu.tick()
+
+        assert cpu() == 0
+        cpu.tick()
+
+        assert cpu() == 0
+        cpu.tick()
+
+        assert cpu.b.value == value
+
+    def test_move_from_register_to_constant_as_pointer(self, cpu):
+        memory_address = dec_to_bin(1024)
+        value = INT_ONE
+        instructions = [move_opcode + a_address + pc_address, value,
+                        move_opcode + pcp_address + a_address, memory_address,
+                        ]
+        self.load_instructions(cpu.ram, instructions)
+
+        assert cpu() == 0
+        cpu.tick()
+
+        assert cpu() == 0
+        cpu.tick()
+
+        assert cpu.ram_bus(UNUSED, memory_address, 0) == value
+        assert cpu.pc(UNUSED, 0, 0, 0) == dec_to_bin(4)
+
     def test_move_two_constants_to_register(self, cpu):
         value_1 = INT_TWO
         value_2 = INT_THREE
-        instructions = [move_opcode + a_address + pcp_address, value_1,
-                        move_opcode + b_address + pcp_address, value_2]
+        instructions = [move_opcode + a_address + pc_address, value_1,
+                        move_opcode + b_address + pc_address, value_2]
         self.load_instructions(cpu.ram, instructions)
 
         assert cpu() == 0
@@ -170,7 +218,7 @@ class TestCPUMove(TestCPU):
     def test_move_from_register_to_register(self, cpu, source_address, target_address, target_register):
         value = INT_TWO
 
-        instructions = [move_opcode + source_address + pcp_address, value,
+        instructions = [move_opcode + source_address + pc_address, value,
                         move_opcode + target_address + source_address,
                         ]
 
@@ -190,7 +238,7 @@ class TestCPUMove(TestCPU):
         target_1 = b_address
         target_2 = c_address
 
-        instructions = [move_opcode + source_address + pcp_address, value,
+        instructions = [move_opcode + source_address + pc_address, value,
                         move_opcode + target_1 + source_address,
                         move_opcode + target_2 + source_address,
                         ]
@@ -223,8 +271,8 @@ class TestCPUMove(TestCPU):
     def test_move_from_register_to_memory(self, cpu, constant_reg, reg_address, reg_p_address, memory_address):
         value = INT_TWO
 
-        instructions = [move_opcode + constant_reg + pcp_address, value,
-                        move_opcode + reg_address + pcp_address, memory_address,
+        instructions = [move_opcode + constant_reg + pc_address, value,
+                        move_opcode + reg_address + pc_address, memory_address,
                         move_opcode + reg_p_address + constant_reg
                         ]
 
@@ -244,10 +292,10 @@ class TestCPUMove(TestCPU):
     def test_move_from_register_to_memory_twice(self, cpu):
         value = INT_TWO
 
-        instructions = [move_opcode + a_address + pcp_address, value,
-                        move_opcode + b_address + pcp_address, self.memory_value_1,
+        instructions = [move_opcode + a_address + pc_address, value,
+                        move_opcode + b_address + pc_address, self.memory_value_1,
                         move_opcode + bp_address + a_address,
-                        move_opcode + b_address + pcp_address, self.memory_value_2,
+                        move_opcode + b_address + pc_address, self.memory_value_2,
                         move_opcode + bp_address + a_address
                         ]
 
@@ -269,7 +317,7 @@ class TestCPUMove(TestCPU):
     def test_move_from_memory_to_register(self, cpu, spource_value, source_pointer, target_address, target):
         value = INT_THREE
 
-        instructions = [move_opcode + spource_value + pcp_address, self.memory_value_1,
+        instructions = [move_opcode + spource_value + pc_address, self.memory_value_1,
                         move_opcode + target_address + source_pointer]
 
         self.load_instructions(cpu.ram, instructions)
@@ -292,8 +340,8 @@ class TestCPUMove(TestCPU):
     def test_move_from_memory_to_memory(self, cpu):
         value = INT_NEG_ONE
 
-        instructions = [move_opcode + a_address + pcp_address, self.memory_value_1,
-                        move_opcode + b_address + pcp_address, self.memory_value_2,
+        instructions = [move_opcode + a_address + pc_address, self.memory_value_1,
+                        move_opcode + b_address + pc_address, self.memory_value_2,
                         move_opcode + bp_address + ap_address,
                         ]
         self.load_instructions(cpu.ram, instructions)
@@ -323,9 +371,9 @@ class TestCPUStack(TestCPU):
         value_1 = INT_ONE
         value_2 = INT_TWO
 
-        instructions = [move_opcode + sp_address + pcp_address, stack_frame,
-                        push_opcode + spp_address + pcp_address, value_1,
-                        push_opcode + spp_address + pcp_address, value_2]
+        instructions = [move_opcode + sp_address + pc_address, stack_frame,
+                        push_opcode + spp_address + pc_address, value_1,
+                        push_opcode + spp_address + pc_address, value_2]
         self.load_instructions(cpu.ram, instructions)
 
         assert cpu() == 0
@@ -350,8 +398,8 @@ class TestCPUStack(TestCPU):
         stack_frame_p1 = dec_to_bin(stack_frame_dec - 1)
         value_1 = INT_ONE
 
-        instructions = [move_opcode + sp_address + pcp_address, stack_frame,
-                        move_opcode + a_address + pcp_address, value_1,
+        instructions = [move_opcode + sp_address + pc_address, stack_frame,
+                        move_opcode + a_address + pc_address, value_1,
                         push_opcode + spp_address + a_address]
         self.load_instructions(cpu.ram, instructions)
 
@@ -374,9 +422,9 @@ class TestCPUStack(TestCPU):
         value_1 = INT_ONE
         memory_address = dec_to_bin(20)
 
-        instructions = [move_opcode + sp_address + pcp_address, stack_frame,
-                        move_opcode + a_address + pcp_address, memory_address,
-                        move_opcode + ap_address + pcp_address, value_1,
+        instructions = [move_opcode + sp_address + pc_address, stack_frame,
+                        move_opcode + a_address + pc_address, memory_address,
+                        move_opcode + ap_address + pc_address, value_1,
                         push_opcode + spp_address + ap_address]
         self.load_instructions(cpu.ram, instructions)
 
@@ -400,8 +448,8 @@ class TestCPUStack(TestCPU):
         stack_frame = dec_to_bin(stack_frame_dec)
         value_1 = INT_ONE
 
-        instructions = [move_opcode + sp_address + pcp_address, stack_frame,
-                        push_opcode + spp_address + pcp_address, value_1,
+        instructions = [move_opcode + sp_address + pc_address, stack_frame,
+                        push_opcode + spp_address + pc_address, value_1,
                         pop_opcode + a_address + spp_address]
         self.load_instructions(cpu.ram, instructions)
 
@@ -423,9 +471,9 @@ class TestCPUStack(TestCPU):
         value_1 = INT_ONE
         memory_address = dec_to_bin(10)
 
-        instructions = [move_opcode + sp_address + pcp_address, stack_frame,
-                        move_opcode + a_address + pcp_address, memory_address,
-                        push_opcode + spp_address + pcp_address, value_1,
+        instructions = [move_opcode + sp_address + pc_address, stack_frame,
+                        move_opcode + a_address + pc_address, memory_address,
+                        push_opcode + spp_address + pc_address, value_1,
                         pop_opcode + ap_address + spp_address]
         self.load_instructions(cpu.ram, instructions)
 
@@ -451,9 +499,9 @@ class TestCPUStack(TestCPU):
         value_1 = INT_ONE
         value_2 = INT_TWO
 
-        instructions = [move_opcode + sp_address + pcp_address, stack_frame,
-                        push_opcode + spp_address + pcp_address, value_1,
-                        push_opcode + spp_address + pcp_address, value_2,
+        instructions = [move_opcode + sp_address + pc_address, stack_frame,
+                        push_opcode + spp_address + pc_address, value_1,
+                        push_opcode + spp_address + pc_address, value_2,
                         pop_opcode + a_address + spp_address,
                         pop_opcode + b_address + spp_address]
         self.load_instructions(cpu.ram, instructions)
@@ -489,7 +537,7 @@ class TestCPUALU(TestCPU):
     @pytest.mark.parametrize('address, register', addresses_register)
     def test_alu_pass(self, cpu, address, register):
         value = INT_ONE
-        instructions = [move_opcode + address + pcp_address, value,
+        instructions = [move_opcode + address + pc_address, value,
                         alu_opcode + alu_pass + address + unused_opcode]
         self.load_instructions(cpu.ram, instructions)
 
@@ -513,8 +561,8 @@ class TestCPUALU(TestCPU):
     @pytest.mark.parametrize('value_1, value_2, expected', values_add)
     def test_alu_add_registers(self, cpu, address_1, address_2, register,
                                value_1, value_2, expected):
-        instructions = [move_opcode + address_1 + pcp_address, value_1,
-                        move_opcode + address_2 + pcp_address, value_2,
+        instructions = [move_opcode + address_1 + pc_address, value_1,
+                        move_opcode + address_2 + pc_address, value_2,
                         alu_opcode + alu_add + address_1 + address_2]
         self.load_instructions(cpu.ram, instructions)
 
@@ -533,8 +581,8 @@ class TestCPUALU(TestCPU):
     @pytest.mark.parametrize('value_1, value_2, expected', values_add)
     def test_alu_add_constant_to_register(self, cpu, address_1, register,
                                           value_1, value_2, expected):
-        instructions = [move_opcode + address_1 + pcp_address, value_1,
-                        alu_opcode + alu_add + address_1 + pcp_address, value_2]
+        instructions = [move_opcode + address_1 + pc_address, value_1,
+                        alu_opcode + alu_add + address_1 + pc_address, value_2]
         self.load_instructions(cpu.ram, instructions)
 
         cpu()
@@ -556,9 +604,9 @@ class TestCPUALU(TestCPU):
     @pytest.mark.parametrize('value_1, value_2, expected', values_add)
     def test_alu_add_constant_to_memory(self, cpu, memory_address,
                                         value_1, value_2, expected):
-        instructions = [move_opcode + a_address + pcp_address, memory_address,
-                        move_opcode + ap_address + pcp_address, value_1,
-                        alu_opcode + alu_add + ap_address + pcp_address, value_2]
+        instructions = [move_opcode + a_address + pc_address, memory_address,
+                        move_opcode + ap_address + pc_address, value_1,
+                        alu_opcode + alu_add + ap_address + pc_address, value_2]
         self.load_instructions(cpu.ram, instructions)
 
         cpu()
@@ -576,10 +624,34 @@ class TestCPUALU(TestCPU):
     @pytest.mark.parametrize('value_1, value_2, expected', values_add)
     def test_alu_add_register_to_memory(self, cpu, memory_address,
                                         value_1, value_2, expected):
-        instructions = [move_opcode + a_address + pcp_address, memory_address,
-                        move_opcode + b_address + pcp_address, value_2,
-                        move_opcode + ap_address + pcp_address, value_1,
+        instructions = [move_opcode + a_address + pc_address, memory_address,
+                        move_opcode + b_address + pc_address, value_2,
+                        move_opcode + ap_address + pc_address, value_1,
                         alu_opcode + alu_add + ap_address + b_address]
+        self.load_instructions(cpu.ram, instructions)
+
+        cpu()
+        cpu.tick()
+
+        cpu()
+        cpu.tick()
+
+        cpu()
+        cpu.tick()
+
+        assert cpu() == 0
+        cpu.tick()
+
+        assert cpu.ram_bus(UNUSED, memory_address, 0) == expected
+
+    @pytest.mark.parametrize('memory_address', memory_addresses)
+    @pytest.mark.parametrize('value_1, value_2, expected', values_add)
+    def test_alu_add_register_to_constant_as_pointer(self, cpu, memory_address,
+                                                     value_1, value_2, expected):
+        instructions = [move_opcode + a_address + pc_address, memory_address,
+                        move_opcode + b_address + pc_address, value_2,
+                        move_opcode + ap_address + pc_address, value_1,
+                        alu_opcode + alu_add + pcp_address + b_address, memory_address]
         self.load_instructions(cpu.ram, instructions)
 
         cpu()
@@ -600,9 +672,9 @@ class TestCPUALU(TestCPU):
     @pytest.mark.parametrize('value_1, value_2, expected', values_add)
     def test_alu_add_memory_register(self, cpu, memory_address,
                                      value_1, value_2, expected):
-        instructions = [move_opcode + a_address + pcp_address, memory_address,
-                        move_opcode + b_address + pcp_address, value_2,
-                        move_opcode + ap_address + pcp_address, value_1,
+        instructions = [move_opcode + a_address + pc_address, memory_address,
+                        move_opcode + b_address + pc_address, value_2,
+                        move_opcode + ap_address + pc_address, value_1,
                         alu_opcode + alu_add + b_address + ap_address]
         self.load_instructions(cpu.ram, instructions)
 
@@ -627,10 +699,10 @@ class TestCPUALU(TestCPU):
     @pytest.mark.parametrize('value_1, value_2, expected', values_add)
     def test_alu_add_memory_to_memory(self, cpu, memory_address_1, memory_address_2,
                                       value_1, value_2, expected):
-        instructions = [move_opcode + a_address + pcp_address, memory_address_1,
-                        move_opcode + b_address + pcp_address, memory_address_2,
-                        move_opcode + ap_address + pcp_address, value_1,
-                        move_opcode + bp_address + pcp_address, value_2,
+        instructions = [move_opcode + a_address + pc_address, memory_address_1,
+                        move_opcode + b_address + pc_address, memory_address_2,
+                        move_opcode + ap_address + pc_address, value_1,
+                        move_opcode + bp_address + pc_address, value_2,
                         alu_opcode + alu_add + ap_address + bp_address]
         self.load_instructions(cpu.ram, instructions)
 
@@ -655,8 +727,8 @@ class TestCPUALU(TestCPU):
     @pytest.mark.parametrize('value_1, value_2, expected', values_sub)
     def test_alu_sub_registers(self, cpu, address_1, address_2, register,
                                value_1, value_2, expected):
-        instructions = [move_opcode + address_1 + pcp_address, value_1,
-                        move_opcode + address_2 + pcp_address, value_2,
+        instructions = [move_opcode + address_1 + pc_address, value_1,
+                        move_opcode + address_2 + pc_address, value_2,
                         alu_opcode + alu_sub + address_1 + address_2]
         self.load_instructions(cpu.ram, instructions)
 
@@ -671,13 +743,30 @@ class TestCPUALU(TestCPU):
 
         assert register_map(cpu)[register].value == expected
 
+    def test_alu_no_move(self, cpu):
+        instructions = [move_opcode + a_address + pc_address, INT_ONE,
+                        move_opcode + b_address + pc_address, INT_ONE,
+                        alu_no_move_opcode + alu_add + a_address + b_address]
+        self.load_instructions(cpu.ram, instructions)
+
+        cpu()
+        cpu.tick()
+
+        cpu()
+        cpu.tick()
+
+        assert cpu() == 0
+        cpu.tick()
+
+        assert cpu.a.value == INT_ONE
+
 
 class TestCPUJump(TestCPU):
     addresses = [dec_to_bin(1024), dec_to_bin(2048)]
 
     @pytest.mark.parametrize('address', addresses)
     def test_jump_to_constant(self, cpu, address):
-        instructions = [jump_opcode + unused_opcode + pcp_address, address]
+        instructions = [jump_opcode + unused_opcode + pc_address, address]
         self.load_instructions(cpu.ram, instructions)
 
         assert cpu() == 0
@@ -690,7 +779,7 @@ class TestCPUJump(TestCPU):
     @pytest.mark.parametrize('register_address', registers)
     @pytest.mark.parametrize('address', addresses)
     def test_jump_to_register(self, cpu, register_address, address):
-        instructions = [move_opcode + register_address + pcp_address, address,
+        instructions = [move_opcode + register_address + pc_address, address,
                         jump_opcode + unused_opcode + register_address]
         self.load_instructions(cpu.ram, instructions)
 
@@ -705,8 +794,8 @@ class TestCPUJump(TestCPU):
     @pytest.mark.parametrize('address', addresses)
     def test_jump_to_memory(self, cpu, address):
         memory_address = dec_to_bin(100)
-        instructions = [move_opcode + a_address + pcp_address, memory_address,
-                        move_opcode + ap_address + pcp_address, address,
+        instructions = [move_opcode + a_address + pc_address, memory_address,
+                        move_opcode + ap_address + pc_address, address,
                         jump_opcode + unused_opcode + ap_address]
         self.load_instructions(cpu.ram, instructions)
 
@@ -723,8 +812,8 @@ class TestCPUJump(TestCPU):
 
     @pytest.mark.parametrize('address', addresses)
     def test_jump_should_not_set_register(self, cpu, address):
-        instructions = [move_opcode + a_address + pcp_address, ZEROS,
-                        jump_opcode + unused_opcode + pcp_address, address]
+        instructions = [move_opcode + a_address + pc_address, ZEROS,
+                        jump_opcode + unused_opcode + pc_address, address]
         self.load_instructions(cpu.ram, instructions)
 
         cpu()
@@ -736,9 +825,9 @@ class TestCPUJump(TestCPU):
         assert cpu.a.value == ZEROS
 
     def test_jump_loop(self, cpu):
-        instructions = [move_opcode + a_address + pcp_address, ZEROS,
+        instructions = [move_opcode + a_address + pc_address, ZEROS,
                         alu_opcode + alu_inc + a_address + unused_opcode,
-                        jump_opcode + unused_opcode + pcp_address, dec_to_bin(2)]
+                        jump_opcode + unused_opcode + pc_address, dec_to_bin(2)]
         self.load_instructions(cpu.ram, instructions)
 
         cpu()
@@ -750,3 +839,300 @@ class TestCPUJump(TestCPU):
                 cpu.tick()
 
         assert cpu.a.value == dec_to_bin(10)
+
+
+class TestCPUJumpZero(TestCPU):
+    addresses = [dec_to_bin(1024), dec_to_bin(2048)]
+
+    @pytest.mark.parametrize('address', addresses)
+    def test_jump_to_constant_not_zero(self, cpu, address):
+        instructions = [move_opcode + a_address + pc_address, INT_ONE,
+                        alu_no_move_opcode + alu_pass + a_address + unused_opcode,
+                        jump_zero_opcode + unused_opcode + pc_address, address]
+        self.load_instructions(cpu.ram, instructions)
+
+        cpu()
+        cpu.tick()
+
+        cpu()
+        cpu.tick()
+
+        assert cpu() == 0
+        cpu.tick()
+
+        assert cpu.pc(UNUSED, 0, 0, 0) == dec_to_bin(5)
+
+    @pytest.mark.parametrize('address', addresses)
+    def test_jump_to_constant_is_zero(self, cpu, address):
+        instructions = [move_opcode + a_address + pc_address, ZEROS,
+                        alu_no_move_opcode + alu_pass + a_address + unused_opcode,
+                        jump_zero_opcode + unused_opcode + pc_address, address]
+        self.load_instructions(cpu.ram, instructions)
+
+        cpu()
+        cpu.tick()
+
+        cpu()
+        cpu.tick()
+
+        assert cpu() == 0
+        cpu.tick()
+
+        assert cpu.pc(UNUSED, 0, 0, 0) == address
+
+    @pytest.mark.parametrize('address', addresses)
+    def test_jump_to_constant_is_zero_intermediate_move(self, cpu, address):
+        instructions = [move_opcode + a_address + pc_address, ZEROS,
+                        alu_no_move_opcode + alu_pass + a_address + unused_opcode,
+                        move_opcode + b_address + pc_address, INT_ONE,
+                        jump_zero_opcode + unused_opcode + pc_address, address]
+        self.load_instructions(cpu.ram, instructions)
+
+        cpu()
+        cpu.tick()
+
+        cpu()
+        cpu.tick()
+
+        cpu()
+        cpu.tick()
+
+        assert cpu() == 0
+        cpu.tick()
+
+        assert cpu.pc(UNUSED, 0, 0, 0) == address
+
+
+class TestCPUJumpNegative(TestCPU):
+    addresses = [dec_to_bin(1024), dec_to_bin(2048)]
+
+    @pytest.mark.parametrize('address', addresses)
+    def test_jump_to_constant_not_neg(self, cpu, address):
+        instructions = [move_opcode + a_address + pc_address, INT_ONE,
+                        alu_no_move_opcode + alu_pass + a_address + unused_opcode,
+                        jump_neg_opcode + unused_opcode + pc_address, address]
+        self.load_instructions(cpu.ram, instructions)
+
+        cpu()
+        cpu.tick()
+
+        cpu()
+        cpu.tick()
+
+        assert cpu() == 0
+        cpu.tick()
+
+        assert cpu.pc(UNUSED, 0, 0, 0) == dec_to_bin(5)
+
+    @pytest.mark.parametrize('address', addresses)
+    def test_jump_to_constant_neg(self, cpu, address):
+        instructions = [move_opcode + a_address + pc_address, INT_NEG_ONE,
+                        alu_no_move_opcode + alu_pass + a_address + unused_opcode,
+                        jump_neg_opcode + unused_opcode + pc_address, address]
+        self.load_instructions(cpu.ram, instructions)
+
+        cpu()
+        cpu.tick()
+
+        cpu()
+        cpu.tick()
+
+        assert cpu() == 0
+        cpu.tick()
+
+        assert cpu.pc(UNUSED, 0, 0, 0) == address
+
+
+class TestCPUJumpOverflow(TestCPU):
+    addresses = [dec_to_bin(1024), dec_to_bin(2048)]
+
+    @pytest.mark.parametrize('address', addresses)
+    def test_jump_to_constant_not_neg(self, cpu, address):
+        instructions = [move_opcode + a_address + pc_address, INT_ONE,
+                        alu_no_move_opcode + alu_add + a_address + a_address,
+                        jump_overflow_opcode + unused_opcode + pc_address, address]
+        self.load_instructions(cpu.ram, instructions)
+
+        cpu()
+        cpu.tick()
+
+        cpu()
+        cpu.tick()
+
+        assert cpu() == 0
+        cpu.tick()
+
+        assert cpu.pc(UNUSED, 0, 0, 0) == dec_to_bin(5)
+
+    @pytest.mark.parametrize('address', addresses)
+    def test_jump_to_constant_overflow(self, cpu, address):
+        instructions = [move_opcode + a_address + pc_address, INT_NEG_ONE,
+                        alu_no_move_opcode + alu_add + a_address + a_address,
+                        jump_overflow_opcode + unused_opcode + pc_address, address]
+        self.load_instructions(cpu.ram, instructions)
+
+        cpu()
+        cpu.tick()
+
+        cpu()
+        cpu.tick()
+
+        assert cpu() == 0
+        cpu.tick()
+
+        assert cpu.pc(UNUSED, 0, 0, 0) == address
+
+
+class TestCPUReset(TestCPU):
+    def test_hardware_reset(self, cpu):
+        instructions = [move_opcode + a_address + pc_address, INT_ONE]
+        self.load_instructions(cpu.ram, instructions)
+
+        assert cpu(reset=1) == 0
+        cpu.tick()
+
+        assert cpu.pc(UNUSED, 0, 0, 0) == ZEROS
+
+    def test_software_reset(self, cpu):
+        instructions = [reset_opcode]
+        self.load_instructions(cpu.ram, instructions)
+
+        assert cpu() == 0
+        cpu.tick()
+
+        assert cpu.pc(UNUSED, 0, 0, 0) == ZEROS
+
+
+class TestCPUShutdown(TestCPU):
+    def test_shutdown(self, cpu):
+        instructions = [shutdown_opcode]
+        self.load_instructions(cpu.ram, instructions)
+
+        assert cpu() == 1
+
+
+class TestCPUHDD(TestCPU):
+    @staticmethod
+    def make_hdd():
+        hdd = HardDisk()
+        data = ZEROS + INT_NEG_ONE + INT_ONE + INT_TWO
+        data += bitarray(512 - 4*16)
+        data += INT_THREE + INT_TWO + INT_ONE
+        hdd.data = data
+        return hdd
+
+    hdd_sector_0 = [(ZEROS, ZEROS),
+                    (INT_ONE, INT_NEG_ONE),
+                    (INT_TWO, INT_ONE),
+                    (INT_THREE, INT_TWO)]
+
+    @pytest.mark.parametrize('hdd_address, expected', hdd_sector_0)
+    def test_hdd_read(self, cpu, hdd_address, expected):
+        instructions = [hdd_opcode + hdd_read + a_address + pc_address, hdd_address]
+        self.load_instructions(cpu.ram, instructions)
+
+        assert cpu() == 0
+        cpu.tick()
+
+        assert cpu.a.value == expected
+
+    def test_hdd_read_twice(self, cpu):
+        hdd_address_1 = self.hdd_sector_0[0][0]
+        hdd_address_2 = self.hdd_sector_0[1][0]
+        expected_1 = self.hdd_sector_0[0][1]
+        expected_2 = self.hdd_sector_0[1][1]
+
+        instructions = [hdd_opcode + hdd_read + a_address + pc_address, hdd_address_1,
+                        hdd_opcode + hdd_read + b_address + pc_address, hdd_address_2]
+        self.load_instructions(cpu.ram, instructions)
+
+        assert cpu() == 0
+        cpu.tick()
+
+        assert cpu() == 0
+        cpu.tick()
+
+        assert cpu.a.value == expected_1
+        assert cpu.b.value == expected_2
+
+    hdd_sector_1 = [(ZEROS, INT_THREE),
+                    (INT_ONE, INT_TWO),
+                    (INT_TWO, INT_ONE)]
+
+    @pytest.mark.parametrize('hdd_address, expected', hdd_sector_1)
+    def test_set_sector(self, cpu, hdd_address, expected):
+        sector_address = INT_ONE
+        instructions = [hdd_opcode + hdd_set_sector + unused_opcode + pc_address, sector_address,
+                        hdd_opcode + hdd_read + a_address + pc_address, hdd_address]
+        self.load_instructions(cpu.ram, instructions)
+
+        assert cpu() == 0
+        cpu.tick()
+
+        assert cpu() == 0
+        cpu.tick()
+
+        assert cpu.a.value == expected
+
+    # @pytest.mark.parametrize('hdd_address, expected', hdd_sector_0)
+    def test_hdd_write_sector_0(self, cpu): #, hdd_address, expected):
+        value_1 = dec_to_bin(234)
+        value_2 = dec_to_bin(52)
+        hdd_address_1 = ZEROS
+        hdd_address_2 = INT_ONE
+        instructions = [move_opcode + a_address + pc_address, hdd_address_1,
+                        hdd_opcode + hdd_write + a_address + pc_address, value_1,
+                        move_opcode + a_address + pc_address, hdd_address_2,
+                        hdd_opcode + hdd_write + a_address + pc_address, value_2
+                        ]
+        self.load_instructions(cpu.ram, instructions)
+
+        cpu()
+        cpu.tick()
+
+        assert cpu() == 0
+        cpu.tick()
+
+        assert cpu.hdd.data[:16] == value_1
+
+        cpu()
+        cpu.tick()
+
+        assert cpu() == 0
+        cpu.tick()
+
+        assert cpu.hdd.data[:16] == value_1
+        assert cpu.hdd.data[16:32] == value_2
+
+    def test_hdd_write_sector_1(self, cpu):
+        value_1 = dec_to_bin(453)
+        value_2 = dec_to_bin(531)
+        hdd_address_1 = ZEROS
+        hdd_address_2 = INT_ONE
+        instructions = [hdd_opcode + hdd_set_sector + unused_opcode + pc_address, INT_ONE,
+                        move_opcode + a_address + pc_address, hdd_address_1,
+                        hdd_opcode + hdd_write + a_address + pc_address, value_1,
+                        move_opcode + a_address + pc_address, hdd_address_2,
+                        hdd_opcode + hdd_write + a_address + pc_address, value_2
+                        ]
+        self.load_instructions(cpu.ram, instructions)
+
+        assert cpu() == 0
+        cpu.tick()
+
+        cpu()
+        cpu.tick()
+
+        assert cpu() == 0
+        cpu.tick()
+
+        assert cpu.hdd.data[512:512+16] == value_1
+
+        cpu()
+        cpu.tick()
+
+        assert cpu() == 0
+        cpu.tick()
+
+        assert cpu.hdd.data[512:512+16] == value_1
+        assert cpu.hdd.data[512+16:512+32] == value_2

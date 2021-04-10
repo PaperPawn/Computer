@@ -142,8 +142,8 @@ class CPU:
 
         constant_address, _ = INC16(pc_value)
         source_register_value = MUX8WAY16(a_value, b_value, c_value, d_value,
-                                   used_sp_value, constant_address, NULL_ADDRESS, NULL_ADDRESS,
-                                   source_address[1:])
+                                          used_sp_value, constant_address, NULL_ADDRESS, NULL_ADDRESS,
+                                          source_address[1:])
 
         source_memory_value = self.ram_bus(NULL_ADDRESS, source_register_value, 0)
 

@@ -6,8 +6,7 @@ from computer.chips.central_processing_unit import CPU
 from computer.utility.numbers import bin_to_dec, dec_to_bin
 
 from computer.chips.tests import (ZEROS, INT_ONE, INT_TWO, INT_THREE,
-                                  INT_NEG_ONE, INT_NEG_TWO,
-                                  ALTERNATING_ZERO_ONE)
+                                  INT_NEG_ONE, ALTERNATING_ZERO_ONE)
 
 UNUSED = bitarray(16)
 # instruction: ajms oooo prrr prrr
@@ -29,7 +28,7 @@ UNUSED = bitarray(16)
 # 1111        (jump if neg and overflow?)
 
 # TODO:
-# Move to stack pointer value
+# Move to stack pointer
 # ALU operations with stack pointer as target
 # Jump operations
 #  Jump if zero
@@ -48,13 +47,13 @@ alu_pass = bitarray('0000')
 
 alu_add = bitarray('0100')
 alu_sub = bitarray('0101')
-alu_neg = bitarray('0001')
+# alu_neg = bitarray('0001')
 alu_inc = bitarray('0010')
-alu_dec = bitarray('0011')
+# alu_dec = bitarray('0011')
 
-alu_and = bitarray('1010')
-alu_or = bitarray('1100')
-alu_xor = bitarray('1110')
+# alu_and = bitarray('1010')
+# alu_or = bitarray('1100')
+# alu_xor = bitarray('1110')
 
 jump_opcode = bitarray('01000000')
 
@@ -304,7 +303,7 @@ class TestCPUMove(TestCPU):
         cpu()
         cpu.tick()
 
-        cpu() == 0
+        cpu()
         cpu.tick()
 
         assert cpu() == 0
@@ -430,10 +429,10 @@ class TestCPUStack(TestCPU):
                         pop_opcode + ap_address + spp_address]
         self.load_instructions(cpu.ram, instructions)
 
-        cpu() == 0
+        cpu()
         cpu.tick()
 
-        cpu() == 0
+        cpu()
         cpu.tick()
 
         assert cpu() == 0
@@ -652,11 +651,6 @@ class TestCPUALU(TestCPU):
 
         assert cpu.ram_bus(UNUSED, memory_address_1, 0) == expected
 
-    values_sub = [(INT_ONE, INT_ONE, ZEROS),
-                  (INT_ONE, ZEROS, INT_ONE),
-                  (INT_ONE, INT_NEG_ONE, INT_TWO),
-                  ]
-
     @pytest.mark.parametrize('address_1, address_2, register', addresses_registers)
     @pytest.mark.parametrize('value_1, value_2, expected', values_sub)
     def test_alu_sub_registers(self, cpu, address_1, address_2, register,
@@ -733,10 +727,10 @@ class TestCPUJump(TestCPU):
                         jump_opcode + unused_opcode + pcp_address, address]
         self.load_instructions(cpu.ram, instructions)
 
-        cpu() == 0
+        cpu()
         cpu.tick()
 
-        cpu() == 0
+        cpu()
         cpu.tick()
 
         assert cpu.a.value == ZEROS

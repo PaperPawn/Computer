@@ -1,6 +1,5 @@
 import pytest
 
-from computer.chips.central_processing_unit import CPU
 from computer.chips.memory import RAM32K
 
 from computer.chips.tests import test_central_processing_unit as test_cpu
@@ -9,11 +8,9 @@ from computer.utility.numbers import dec_to_bin
 
 
 class TestCPUIntegration:
-    @pytest.fixture
-    def cpu(self):
-        ram = RAM32K()
-        hdd = test_cpu.MockHardDisk()
-        return CPU(ram, hdd)
+    @staticmethod
+    def make_ram():
+        return RAM32K()
 
     @staticmethod
     def load_instructions(ram, instructions):
@@ -52,4 +49,8 @@ class TestCPUJumpOverflowIntegration(TestCPUIntegration, test_cpu.TestCPUJumpOve
 
 
 class TestCPUResetIntegration(TestCPUIntegration, test_cpu.TestCPUReset):
+    pass
+
+
+class TestCPUHDDIntegration(TestCPUIntegration, test_cpu.TestCPUHDD):
     pass

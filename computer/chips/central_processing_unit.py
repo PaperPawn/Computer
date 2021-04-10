@@ -170,16 +170,12 @@ class CPU:
         # HDD op
         is_hdd = AND(NOT(OR(opcode[0], opcode[3])),
                      AND(opcode[2], secondary_opcode[0]))
-        # print()
-        # print(f'secondary_opcode: {secondary_opcode}')
+
         hdd_write = AND(is_hdd, secondary_opcode[2])
-        hdd_read = NOT(hdd_write)
 
         hdd_address = MUX16(source_value, target_value, hdd_write)
         hdd_address = MUX16(ZERO_ADDRESS, hdd_address, is_hdd)
-        # hdd_address = source_value
         hdd_set_sector = AND(is_hdd, secondary_opcode[1])
-        # hdd_value = MUX16(NULL_ADDRESS, source_value, secondary_opcode[2])
         hdd_value = source_value
         hdd_out = self.hdd(hdd_address, hdd_set_sector, hdd_value, hdd_write)
 

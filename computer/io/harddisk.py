@@ -23,13 +23,10 @@ class HardDisk:
             self.data.tofile(file)
 
     def __call__(self, address, select_sector, value, write):
-        print()
-        print(f'address: {address}, sel_sec: {select_sector}, value: {value}, write: {write}')
         sector = self.sector(address, select_sector)
 
         sector = bin_to_dec(sector)
         address = bin_to_dec(address)
-        print(f'Using sector {sector}')
         i = self.sector_size * sector + 16 * address
 
         if write:

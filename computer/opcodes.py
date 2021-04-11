@@ -42,7 +42,7 @@ c_address = bitarray('0010')
 d_address = bitarray('0011')
 
 sp_address = bitarray('0100')  # stack pointer as value
-pc_address = bitarray('0101')  # pc register +1 as value
+constant_address = bitarray('0101')  # pc register +1 as value
 
 # address as pointer
 ap_address = bitarray('1000')
@@ -51,4 +51,4 @@ cp_address = bitarray('1010')
 dp_address = bitarray('1011')
 
 spp_address = bitarray('1100')  # stack pointer as pointer
-pcp_address = bitarray('1101')  # pc register +1 as pointer
+constantp_address = bitarray('1101')  # pc register +1 as pointer

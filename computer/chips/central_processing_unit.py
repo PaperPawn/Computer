@@ -197,7 +197,7 @@ class CPU:
                                    target_address[1:])
 
         # Load moved value
-        load = opcode[2]
+        load = AND(NOT(opcode[1]), opcode[2])
         self.ram_bus(result, memory_address, AND(selected_target[1], load))
         self.a(result, AND(selected_register[0], load))
         self.b(result, AND(selected_register[1], load))

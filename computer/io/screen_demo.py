@@ -63,11 +63,16 @@ class Screen(QLabel):
         canvas = QPixmap(width, height)
         self.setPixmap(canvas)
 
-        timer = QTimer(self)
-        timer.timeout.connect(self.set_pixels)
-        timer.start(100)
-
+        self.colors = [Qt.red, Qt.darkYellow, Qt.yellow, Qt.green, Qt.blue, Qt.white]
         self.bits = bitarray(width*height)
+
+        self.circle_maker = CircleMaker(self.bits, width, height)
+        self.start_automatic_refresh()
+
+    def start_automatic_refresh(self):
+        timer = QTimer(self)
+        timer.timeout.connect(self.paint_circle)
+        timer.start(100)
 
     # def paintEvent(self, event):
 #         print(f'paint event: {event}')
@@ -84,7 +89,7 @@ class Screen(QLabel):
         painter = QPainter(self.pixmap())
         self.clear_background(painter)
 
-        painter.setPen(Qt.white)
+        painter.setPen(self.colors[0])
 
         for i in range(1024):
             x = random.randint(0, width - 1)
@@ -100,7 +105,9 @@ class Screen(QLabel):
 
         painter = QPainter(self.pixmap())
         # self.clear_background(painter)
-        painter.setPen(Qt.white)
+
+        painter.setPen(self.colors[0])
+        self.colors = self.colors[1:] + self.colors[:1]
 
         for x in range(width):
             for y in range(height):
@@ -119,6 +126,11 @@ class Screen(QLabel):
         for x in range(width):
             for y in range(height):
                 painter.drawPoint(x, y)
+
+    def paint_circle(self):
+        # print('Painting circle')
+        self.circle_maker.make_circle()
+        self.set_pixels()
 
     # def mouseMoveEvent(self, e):
     #     print(f'Screen: mouse mode event: {e}')
@@ -139,23 +151,12 @@ class Worker(QObject):
         self.width = width
         self.height = height
 
+        self.circle_maker = CircleMaker(bits, width, height)
     # def run(self):
     #     for i in range(5):
     #         time.sleep(1)
     #         self.progress.emit(i + 1)
     #     self.finished.emit()
-
-    def make_circle(self, center, radius):
-        self.bits.setall(0)
-
-        x_center, y_center = center
-        half_thickness = 2
-        for x in range(self.width):
-            for y in range(self.height):
-                inner = (radius - half_thickness) ** 2
-                outer = (radius + half_thickness) ** 2
-                if inner < (x - x_center) ** 2 + (y - y_center) ** 2 < outer:
-                    self.bits[x + self.width * y] = 1
 
     def run(self):
         center = (self.width / 2, self.height / 2)
@@ -164,7 +165,7 @@ class Worker(QObject):
             if radius > 300:
                 radius = 0
             radius += 5
-            self.make_circle(center, radius)
+            self.circle_maker.make_circle(center, radius)
 
     def print_random_pixels(self):
         size = len(self.bits)
@@ -176,6 +177,31 @@ class Worker(QObject):
         self.finished.emit()
 
 
+class CircleMaker:
+    def __init__(self, bits, width, height):
+        self.bits = bits
+        self.width = width
+        self.height = height
+
+        self.x_center = width / 2
+        self.y_center = height / 2
+        self.radius = 0
+
+    def make_circle(self):
+        self.bits.setall(0)
+
+        if self.radius > 300:
+            self.radius = 0
+        self.radius += 5
+        half_thickness = 2
+        for x in range(self.width):
+            for y in range(self.height):
+                inner = (self.radius - half_thickness) ** 2
+                outer = (self.radius + half_thickness) ** 2
+                if inner < (x - self.x_center) ** 2 + (y - self.y_center) ** 2 < outer:
+                    self.bits[x + self.width * y] = 1
+
+
 def main():
     # screen = Screen()
     # screen.show()
@@ -185,8 +211,8 @@ def main():
     width = 600
     height = 400
     window = Window(width, height)
-    window.screen.bits.setall(0)
-    window.run_thread_task(width, height)
+    # window.screen.bits.setall(0)
+    # window.run_thread_task(width, height)
 
     # bits = window.screen.bits
     # bits = bitarray(width*height)
@@ -198,12 +224,6 @@ def main():
     # window.screen.set_pixels()
     # window.screen.update()
 
-    # while True:
-        # i = random.randint(0, width - height - 1)
-        # bits[i] = not bits[i]
-        # window.screen.set_pixels()
-        # window.show()
-        # time.sleep(1)
     # for i in range(10):
 #         window.screen.set_pixels()
     sys.exit(app.exec())

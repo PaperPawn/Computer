@@ -31,6 +31,7 @@ class CPU:
         jump
         jump if zero
         jump if neg
+        jump if overflow
         move
         hdd op
         reset

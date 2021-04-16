@@ -1,3 +1,5 @@
+import os
+
 from computer.chips.central_processing_unit import CPU
 from computer.chips.memory import RAM32K
 from computer.io.harddisk import HardDisk
@@ -81,12 +83,10 @@ def main():
 
 def get_hdd_with_test_program():
     hdd = HardDisk()
-    data = bitarray(512 * 10)
-    data[:16] = dec_to_bin(4)
-    data[16:32] = move_opcode + d_address + constant_address
-    data[32:48] = dec_to_bin(52)
-    data[48:64] = shutdown_opcode
-    hdd.data = data
+    file_name = 'test.bin'
+    file_path = os.path.join(r'D:\Programmering\python\computer\computer\assembler',
+                             file_name)
+    hdd.load_data(file_path)
     return hdd
 
 

@@ -115,7 +115,6 @@ class TestParser:
 
 # push
 # pop
-# arithmetic (add, sub, neg...):
 # add
 # sub
 # neg

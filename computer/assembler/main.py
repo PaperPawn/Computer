@@ -15,9 +15,9 @@ def main():
         for line in file:
             tokens.extend(lexer.scan(line))
 
-    print(f'Tokens: {tokens}')
+    # print(f'Tokens: {tokens}')
     instructions = parser.parse(tokens)
-    print(f'Instructions: {instructions}')
+    # print(f'Instructions: {instructions}')
     binary = dec_to_bin(len(instructions) + 1)
     for instruction in instructions:
         binary += instruction

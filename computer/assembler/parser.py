@@ -10,7 +10,21 @@ two_address_commands = {TokenKeyword.Move: move_opcode,
                         TokenKeyword.Sub: alu_opcode+alu_sub,
                         TokenKeyword.And: alu_opcode+alu_and,
                         TokenKeyword.Or: alu_opcode+alu_or,
-                        TokenKeyword.Xor: alu_opcode+alu_xor}
+                        TokenKeyword.Xor: alu_opcode+alu_xor,
+                        TokenKeyword.Compare: alu_no_move_opcode+alu_sub,
+                        TokenKeyword.HddWrite: hdd_opcode+hdd_write,
+                        TokenKeyword.HddRead: hdd_opcode+hdd_read}
+target_address_commands = {TokenKeyword.Inc: alu_opcode+alu_inc,
+                           TokenKeyword.Dec: alu_opcode+alu_dec,
+                           TokenKeyword.Negate: alu_opcode+alu_neg,
+                           TokenKeyword.Not: alu_opcode+alu_not,
+                           TokenKeyword.Pop: pop_opcode}
+source_address_commands = {TokenKeyword.Jump: jump_opcode,
+                           TokenKeyword.JumpIfZero: jump_zero_opcode,
+                           TokenKeyword.JumpIfNeg: jump_neg_opcode,
+                           TokenKeyword.JumpIfOverflow: jump_overflow_opcode,
+                           TokenKeyword.HddSector: hdd_opcode+hdd_set_sector,
+                           TokenKeyword.Push: push_opcode}
 registers = {TokenKeyword.a: a_address,
              TokenKeyword.b: b_address,
              TokenKeyword.c: c_address,
@@ -38,13 +52,17 @@ class Parser:
     def parse_next_instruction(self):
         token = self.get_next_token()
         if token in two_address_commands:
-            opcode = two_address_commands[token]
-            instruction = self.parse_two_address_command(opcode)
+            instruction = self.parse_two_address_command(token)
+        elif token in target_address_commands:
+            instruction = self.parse_target_address_command(token)
+        elif token in source_address_commands:
+            instruction = self.parse_source_address_command(token)
         else:
             instruction = [system_commands[token]]
         return instruction
 
-    def parse_two_address_command(self, opcode):
+    def parse_two_address_command(self, token):
+        opcode = two_address_commands[token]
         address_1, value_1 = self.parse_address()
         address_2, value_2 = self.parse_address()
         instruction = [opcode + address_1 + address_2]
@@ -52,6 +70,24 @@ class Parser:
             instruction.append(dec_to_bin(value_1))
         elif value_2 is not None:
             instruction.append(dec_to_bin(value_2))
+        return instruction
+
+    def parse_target_address_command(self, token):
+        opcode = target_address_commands[token]
+        address_1, value = self.parse_address()
+        if value is not None:
+            raise ParserError(f'Command {token.value} does not accept constants\n'
+                              f'Got: {value}')
+        address_2 = spp_address if token == TokenKeyword.Pop else unused_opcode
+        return [opcode + address_1 + address_2]
+
+    def parse_source_address_command(self, token):
+        opcode = source_address_commands[token]
+        address_1, value = self.parse_address()
+        address_2 = spp_address if token == TokenKeyword.Push else unused_opcode
+        instruction = [opcode + address_2 + address_1]
+        if value is not None:
+            instruction.append(dec_to_bin(value))
         return instruction
 
     def parse_address(self):
@@ -66,8 +102,8 @@ class Parser:
             address, value = self.parse_pointer(value)
         else:
             raise ParserError(f"Got unexpected token while parsing address.\n"
-                              f"Expected 'constant', 'register' or '['\n"
-                              f"Got: {token}")
+                              f"Expected: constant, register or [\n"
+                              f"Got: {token.value}")
         return address, value
 
     def parse_pointer(self, value):
@@ -83,7 +119,7 @@ class Parser:
     def eat_token(self, expected):
         token = self.get_next_token()
         if token != expected:
-            raise ParserError(f"Expected {expected} got {token}")
+            raise ParserError(f"Expected: {expected.value}\nGot {token.value}")
 
     def get_next_token(self):
         return self.tokens.pop(0)

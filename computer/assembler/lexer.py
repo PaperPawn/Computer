@@ -5,35 +5,10 @@ numbers = '1234567890'
 whitespace = ' \n\t'
 comment = '%'
 
-command_tokens = {'shutdown':  TokenKeyword.Shutdown,
-                  'reset': TokenKeyword.Reset,
-                  'move': TokenKeyword.Move,
-                  'push': TokenKeyword.Push,
-                  'pop': TokenKeyword.Pop,
-                  'add': TokenKeyword.Add,
-                  'sub': TokenKeyword.Sub,
-                  'and': TokenKeyword.And,
-                  'or': TokenKeyword.Or,
-                  'xor': TokenKeyword.Xor,
-                  'neg': TokenKeyword.Negate,
-                  'inc': TokenKeyword.Inc,
-                  'dec': TokenKeyword.Dec,
-                  'jump': TokenKeyword.Jump,
-                  'jump_zero': TokenKeyword.JumpIfZero,
-                  'jump_neg': TokenKeyword.JumpIfNeg,
-                  'jump_overflow': TokenKeyword.JumpIfOverflow,
-                  'hddread': TokenKeyword.HddRead,
-                  'hddwrite': TokenKeyword.HddWrite,
-                  'hddsector': TokenKeyword.HddSector}
-register_tokens = {'a': TokenKeyword.a,
-                   'b': TokenKeyword.b,
-                   'c': TokenKeyword.c,
-                   'd': TokenKeyword.d,
-                   'sp': TokenKeyword.sp}
-delimiter_tokens = {'[': TokenDelimiter.LeftBracket,
-                    ']': TokenDelimiter.RightBracket,
-                    ':': TokenDelimiter.Colon
-                    }
+registers = ['a', 'b', 'c', 'd', 'sp']
+command_tokens = {token.value: token for token in TokenKeyword if token not in registers}
+register_tokens = {token.value: token for token in TokenKeyword if token in registers}
+delimiter_tokens = {token.value: token for token in TokenDelimiter}
 
 delimiters = ''.join(delimiter_tokens)
 valid_token_characters = variable + numbers + delimiters

@@ -314,7 +314,6 @@ class TestCPUMove(TestCPU):
         assert cpu.ram_bus(UNUSED, self.memory_value_1, 0) == value
 
 
-
 class TestCPUStack(TestCPU):
     stack_frames = [1024, 2048]
 
@@ -1031,8 +1030,7 @@ class TestCPUHDD(TestCPU):
 
         assert cpu.a.value == expected
 
-    # @pytest.mark.parametrize('hdd_address, expected', hdd_sector_0)
-    def test_hdd_write_sector_0(self, cpu): #, hdd_address, expected):
+    def test_hdd_write_sector_0(self, cpu):
         value_1 = dec_to_bin(234)
         value_2 = dec_to_bin(52)
         hdd_address_1 = ZEROS

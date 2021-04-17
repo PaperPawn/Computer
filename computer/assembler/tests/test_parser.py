@@ -34,14 +34,17 @@ class TestParser:
                             (TokenKeyword.Sub, alu_opcode + alu_sub),
                             (TokenKeyword.And, alu_opcode + alu_and),
                             (TokenKeyword.Or, alu_opcode + alu_or),
-                            (TokenKeyword.Xor, alu_opcode + alu_xor)]
+                            (TokenKeyword.Xor, alu_opcode + alu_xor),
+                            (TokenKeyword.Compare, alu_no_move_opcode + alu_sub),
+                            (TokenKeyword.HddWrite, hdd_opcode+hdd_write),
+                            (TokenKeyword.HddRead, hdd_opcode + hdd_read)]
 
-    registers = [([TokenKeyword.a, TokenKeyword.b], a_address+b_address),
-                 ([TokenKeyword.c, TokenKeyword.d], c_address+d_address),
-                 ([TokenKeyword.b, TokenKeyword.sp], b_address+sp_address)]
+    two_registers = [([TokenKeyword.a, TokenKeyword.b], a_address + b_address),
+                     ([TokenKeyword.c, TokenKeyword.d], c_address+d_address),
+                     ([TokenKeyword.b, TokenKeyword.sp], b_address+sp_address)]
 
     @pytest.mark.parametrize('command_token, opcode', two_address_commands)
-    @pytest.mark.parametrize('tokens, addresses', registers)
+    @pytest.mark.parametrize('tokens, addresses', two_registers)
     def test_two_address_command_register_to_register(self, parser, command_token, opcode,
                                                       tokens, addresses):
         tokens = [command_token] + tokens
@@ -49,14 +52,14 @@ class TestParser:
 
         assert instructions == [opcode + addresses]
 
-    pregisters = [((TokenKeyword.a, TokenKeyword.b), (a_address, bp_address)),
-                  ((TokenKeyword.a, TokenKeyword.c), (a_address, cp_address)),
-                  ((TokenKeyword.a, TokenKeyword.d), (a_address, dp_address)),
-                  ((TokenKeyword.a, TokenKeyword.sp), (a_address, spp_address)),
-                  ((TokenKeyword.d, TokenKeyword.a), (d_address, ap_address))]
+    two_pregisters = [((TokenKeyword.a, TokenKeyword.b), (a_address, bp_address)),
+                      ((TokenKeyword.a, TokenKeyword.c), (a_address, cp_address)),
+                      ((TokenKeyword.a, TokenKeyword.d), (a_address, dp_address)),
+                      ((TokenKeyword.a, TokenKeyword.sp), (a_address, spp_address)),
+                      ((TokenKeyword.d, TokenKeyword.a), (d_address, ap_address))]
 
     @pytest.mark.parametrize('command_token, opcode', two_address_commands)
-    @pytest.mark.parametrize('tokens, addresses', pregisters)
+    @pytest.mark.parametrize('tokens, addresses', two_pregisters)
     def test_two_address_command_register_pointer_to_register(self, parser, command_token, opcode,
                                                               tokens, addresses):
         tokens = [command_token, tokens[0],
@@ -66,7 +69,7 @@ class TestParser:
         assert instructions == [opcode + addresses[0] + addresses[1]]
 
     @pytest.mark.parametrize('command_token, opcode', two_address_commands)
-    @pytest.mark.parametrize('tokens, addresses', pregisters)
+    @pytest.mark.parametrize('tokens, addresses', two_pregisters)
     def test_two_address_command_register_to_register_pointer(self, parser, command_token, opcode, tokens, addresses):
         tokens = [command_token, TokenDelimiter.LeftBracket, tokens[1],
                   TokenDelimiter.RightBracket, tokens[0]]
@@ -131,27 +134,109 @@ class TestParser:
         with pytest.raises(ParserError):
             parser.parse(tokens)
 
-# target address
-# inc
-# dec
-# neg
-# pop
+    target_address_commands = [(TokenKeyword.Inc, alu_opcode+alu_inc),
+                               (TokenKeyword.Dec, alu_opcode+alu_dec),
+                               (TokenKeyword.Negate, alu_opcode+alu_neg),
+                               (TokenKeyword.Not, alu_opcode+alu_not)
+                               ]
+    registers = [(TokenKeyword.a, a_address),
+                 (TokenKeyword.b, b_address),
+                 (TokenKeyword.c, c_address),
+                 (TokenKeyword.d, d_address),
+                 (TokenKeyword.sp, sp_address)]
 
-# source address
-# push
-# jump
-# jump if zero
-# jump if neg
-# jump if overflow
+    @pytest.mark.parametrize('command_token, opcode', target_address_commands)
+    @pytest.mark.parametrize('register_token, address', registers)
+    def test_target_address_command_register(self, parser, command_token, opcode,
+                                             register_token, address):
+        tokens = [command_token, register_token]
+        instructions = parser.parse(tokens)
+        assert instructions == [opcode + address + unused_opcode]
 
-# two address
-# hddwrite
-# hddread
-# hddsector
+    p_registers = [(TokenKeyword.a, ap_address),
+                   (TokenKeyword.b, bp_address),
+                   (TokenKeyword.c, cp_address),
+                   (TokenKeyword.d, dp_address),
+                   (TokenKeyword.sp, spp_address)]
+
+    @pytest.mark.parametrize('command_token, opcode', target_address_commands)
+    @pytest.mark.parametrize('register_token, address', p_registers)
+    def test_target_address_command_register_pointer(self, parser, command_token, opcode,
+                                                     register_token, address):
+        tokens = [command_token, TokenDelimiter.LeftBracket, register_token, TokenDelimiter.RightBracket]
+        instructions = parser.parse(tokens)
+        assert instructions == [opcode + address + unused_opcode]
+
+    source_address_commands = [(TokenKeyword.Jump, jump_opcode),
+                               (TokenKeyword.JumpIfZero, jump_zero_opcode),
+                               (TokenKeyword.JumpIfNeg, jump_neg_opcode),
+                               (TokenKeyword.JumpIfOverflow, jump_overflow_opcode),
+                               (TokenKeyword.HddSector, hdd_opcode+hdd_set_sector)]
+
+    @pytest.mark.parametrize('command_token, opcode', target_address_commands)
+    def test_target_address_command_should_not_accept_constant(self, parser, command_token, opcode):
+        tokens = [command_token, TokenConstant(10)]
+        with pytest.raises(ParserError):
+            parser.parse(tokens)
+
+    @pytest.mark.parametrize('register_token, address', registers)
+    def test_pop_register(self, parser, register_token, address):
+        tokens = [TokenKeyword.Pop, register_token]
+        instructions = parser.parse(tokens)
+        assert instructions == [pop_opcode + address + spp_address]
+
+    @pytest.mark.parametrize('register_token, address', p_registers)
+    def test_pop_register_pointer(self, parser, register_token, address):
+        tokens = [TokenKeyword.Pop, TokenDelimiter.LeftBracket, register_token, TokenDelimiter.RightBracket]
+        instructions = parser.parse(tokens)
+        assert instructions == [pop_opcode + address + spp_address]
+
+    @pytest.mark.parametrize('command_token, opcode', source_address_commands)
+    @pytest.mark.parametrize('register_token, address', registers)
+    def test_source_address_command_register(self, parser, command_token, opcode,
+                                             register_token, address):
+        tokens = [command_token, register_token]
+        instructions = parser.parse(tokens)
+        assert instructions == [opcode + unused_opcode + address]
+
+    @pytest.mark.parametrize('command_token, opcode', source_address_commands)
+    @pytest.mark.parametrize('register_token, address', p_registers)
+    def test_source_address_command_register_pointer(self, parser, command_token, opcode,
+                                                     register_token, address):
+        tokens = [command_token, TokenDelimiter.LeftBracket, register_token, TokenDelimiter.RightBracket]
+        instructions = parser.parse(tokens)
+        assert instructions == [opcode + unused_opcode + address]
+
+    constants = [10, 256, 5262]
+
+    @pytest.mark.parametrize('command_token, opcode', source_address_commands)
+    @pytest.mark.parametrize('constant', constants)
+    def test_source_address_command_constant(self, parser, command_token, opcode, constant):
+        tokens = [command_token, TokenConstant(constant)]
+        instructions = parser.parse(tokens)
+        assert instructions == [opcode + unused_opcode + constant_address,
+                                dec_to_bin(constant)]
+
+    @pytest.mark.parametrize('register_token, address', registers)
+    def test_push_register(self, parser, register_token, address):
+        tokens = [TokenKeyword.Push, register_token]
+        instructions = parser.parse(tokens)
+        assert instructions == [push_opcode + spp_address + address]
+
+    @pytest.mark.parametrize('register_token, address', p_registers)
+    def test_push_register_pointer(self, parser, register_token, address):
+        tokens = [TokenKeyword.Push, TokenDelimiter.LeftBracket, register_token, TokenDelimiter.RightBracket]
+        instructions = parser.parse(tokens)
+        assert instructions == [push_opcode + spp_address + address]
+
+    @pytest.mark.parametrize('constant', constants)
+    def test_push_constant(self, parser, constant):
+        tokens = [TokenKeyword.Push, TokenConstant(constant)]
+        instructions = parser.parse(tokens)
+        assert instructions == [push_opcode + spp_address + constant_address,
+                                dec_to_bin(constant)]
 
 # not implemented in lexer
-# compare
-# not (bitflip)
 # import
 # call
 # return

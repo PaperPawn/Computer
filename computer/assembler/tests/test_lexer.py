@@ -119,7 +119,8 @@ class TestLexer:
                       ('sub', TokenKeyword.Sub),
                       ('and', TokenKeyword.And),
                       ('or', TokenKeyword.Or),
-                      ('xor', TokenKeyword.Xor)]
+                      ('xor', TokenKeyword.Xor),
+                      ('compare', TokenKeyword.Compare)]
 
     @pytest.mark.parametrize('command, token', alu_commands_2)
     def test_arithmetic_two_parameters(self, lexer, command, token):
@@ -131,10 +132,11 @@ class TestLexer:
 
     alu_commands_1 = [('neg', TokenKeyword.Negate),
                       ('inc', TokenKeyword.Inc),
-                      ('dec', TokenKeyword.Dec)]
+                      ('dec', TokenKeyword.Dec),
+                      ('not', TokenKeyword.Not)]
 
     @pytest.mark.parametrize('command, token', alu_commands_1)
-    def test_arithmetic_two_parameters(self, lexer, command, token):
+    def test_arithmetic_one_parameter(self, lexer, command, token):
         line = f'{command} a'
         tokens = lexer.scan(line)
         assert tokens == [token,
@@ -205,12 +207,12 @@ class TestLexer:
         assert tokens == [TokenKeyword.Jump,
                           TokenLabel('abc')]
 
-# compare
-# not
-# import
+# variable declaration
+
+# Not implementer in CPU
 # call
 # return
-# variable declaration
+# import
 
 # Never implement?s
 # not(a) and b

@@ -27,6 +27,7 @@ alu_dec = bitarray('0011')
 alu_and = bitarray('1010')
 alu_or = bitarray('1100')
 alu_xor = bitarray('1110')
+alu_not = bitarray('1001')
 
 jump_opcode = bitarray('01000000')
 jump_zero_opcode = bitarray('01100000')

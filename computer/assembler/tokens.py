@@ -3,12 +3,13 @@ from enum import Enum
 TokenKeyword = Enum('TokenKeyword', 'Shutdown Reset Move Push Pop '
                                     'Add Sub And Or Xor Negate Inc Dec '
                                     'Jump JumpIfZero JumpIfNeg JumpIfOverflow '
-                                    'HddRead HddWrite HddSector')
-TokenRegister = Enum('TokenRegister', 'a b c d sp')
+                                    'HddRead HddWrite HddSector '
+                                    'a b c d sp')
+# TokenRegister = Enum('TokenRegister', 'a b c d sp')
 TokenDelimiter = Enum('TokenDelimiter', 'LeftBracket RightBracket Colon')
 
 
-class TokenInt:
+class TokenConstant:
     def __init__(self, value):
         self.value = value
 

@@ -1,21 +1,26 @@
-from computer.assembler.tokens import TokenKeyword, TokenRegister, TokenDelimiter, TokenInt, TokenLabel
+from computer.assembler.tokens import TokenKeyword, TokenDelimiter, TokenConstant, TokenLabel
 from computer.opcodes import *
 
 from computer.utility.numbers import dec_to_bin
 
-instruction_map = {TokenKeyword.Shutdown: shutdown_opcode,
+system_commands = {TokenKeyword.Shutdown: shutdown_opcode,
                    TokenKeyword.Reset: reset_opcode}
-registers = {TokenRegister.a: a_address,
-             TokenRegister.b: b_address,
-             TokenRegister.c: c_address,
-             TokenRegister.d: d_address,
-             TokenRegister.sp: sp_address}
-pointer_registers = {TokenRegister.a: ap_address,
-                     TokenRegister.b: bp_address,
-                     TokenRegister.c: cp_address,
-                     TokenRegister.d: dp_address,
-                     TokenRegister.sp: spp_address,
-                     }
+two_address_commands = {TokenKeyword.Move: move_opcode,
+                        TokenKeyword.Add: alu_opcode+alu_add,
+                        TokenKeyword.Sub: alu_opcode+alu_sub,
+                        TokenKeyword.And: alu_opcode+alu_and,
+                        TokenKeyword.Or: alu_opcode+alu_or,
+                        TokenKeyword.Xor: alu_opcode+alu_xor}
+registers = {TokenKeyword.a: a_address,
+             TokenKeyword.b: b_address,
+             TokenKeyword.c: c_address,
+             TokenKeyword.d: d_address,
+             TokenKeyword.sp: sp_address}
+pointer_registers = {TokenKeyword.a: ap_address,
+                     TokenKeyword.b: bp_address,
+                     TokenKeyword.c: cp_address,
+                     TokenKeyword.d: dp_address,
+                     TokenKeyword.sp: spp_address}
 
 
 class Parser:
@@ -32,16 +37,17 @@ class Parser:
 
     def parse_next_instruction(self):
         token = self.get_next_token()
-        if token == TokenKeyword.Move:
-            instruction = self.parse_move_command()
+        if token in two_address_commands:
+            opcode = two_address_commands[token]
+            instruction = self.parse_two_address_command(opcode)
         else:
-            instruction = [instruction_map[token]]
+            instruction = [system_commands[token]]
         return instruction
 
-    def parse_move_command(self):
+    def parse_two_address_command(self, opcode):
         address_1, value_1 = self.parse_address()
         address_2, value_2 = self.parse_address()
-        instruction = [move_opcode + address_1 + address_2]
+        instruction = [opcode + address_1 + address_2]
         if value_1 is not None:
             instruction.append(dec_to_bin(value_1))
         elif value_2 is not None:
@@ -51,21 +57,22 @@ class Parser:
     def parse_address(self):
         token = self.get_next_token()
         value = None
-        if isinstance(token, TokenInt):
+        if isinstance(token, TokenConstant):
             address = constant_address
             value = token.value
-        elif token in TokenRegister:
+        elif token in registers:
             address = registers[token]
         elif token == TokenDelimiter.LeftBracket:
             address, value = self.parse_pointer(value)
         else:
-            raise ParserError(f"Got invalid token: {token} while parsing address.\n"
-                              f"Expected {TokenInt}, {TokenRegister} or {TokenDelimiter.LeftBracket}")
+            raise ParserError(f"Got unexpected token while parsing address.\n"
+                              f"Expected 'constant', 'register' or '['\n"
+                              f"Got: {token}")
         return address, value
 
     def parse_pointer(self, value):
         token = self.get_next_token()
-        if isinstance(token, TokenInt):
+        if isinstance(token, TokenConstant):
             address = constantp_address
             value = token.value
         else:

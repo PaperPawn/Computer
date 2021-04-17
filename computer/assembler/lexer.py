@@ -1,11 +1,11 @@
-from computer.assembler.tokens import TokenKeyword, TokenRegister, TokenDelimiter, TokenInt, TokenLabel
+from computer.assembler.tokens import TokenKeyword, TokenDelimiter, TokenConstant, TokenLabel
 
 variable = 'abcdefghijklmnopqrstuvwqxyz_'
 numbers = '1234567890'
 whitespace = ' \n\t'
 comment = '%'
 
-keyword_tokens = {'shutdown':  TokenKeyword.Shutdown,
+command_tokens = {'shutdown':  TokenKeyword.Shutdown,
                   'reset': TokenKeyword.Reset,
                   'move': TokenKeyword.Move,
                   'push': TokenKeyword.Push,
@@ -25,11 +25,11 @@ keyword_tokens = {'shutdown':  TokenKeyword.Shutdown,
                   'hddread': TokenKeyword.HddRead,
                   'hddwrite': TokenKeyword.HddWrite,
                   'hddsector': TokenKeyword.HddSector}
-register_tokens = {'a': TokenRegister.a,
-                   'b': TokenRegister.b,
-                   'c': TokenRegister.c,
-                   'd': TokenRegister.d,
-                   'sp': TokenRegister.sp}
+register_tokens = {'a': TokenKeyword.a,
+                   'b': TokenKeyword.b,
+                   'c': TokenKeyword.c,
+                   'd': TokenKeyword.d,
+                   'sp': TokenKeyword.sp}
 delimiter_tokens = {'[': TokenDelimiter.LeftBracket,
                     ']': TokenDelimiter.RightBracket,
                     ':': TokenDelimiter.Colon
@@ -83,7 +83,7 @@ class Lexer:
 
     def scan_number(self):
         name = self.scan_generic(numbers)
-        return TokenInt(int(name))
+        return TokenConstant(int(name))
 
     def scan_name(self):
         name = self.scan_generic(variable)
@@ -110,8 +110,8 @@ class Lexer:
 
     @staticmethod
     def get_token(name):
-        if name in keyword_tokens:
-            token = keyword_tokens[name]
+        if name in command_tokens:
+            token = command_tokens[name]
         elif name in register_tokens:
             token = register_tokens[name]
         else:

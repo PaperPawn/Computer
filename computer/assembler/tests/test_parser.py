@@ -77,26 +77,26 @@ class TestParser:
         instructions = parser.parse(tokens)
         assert instructions == [opcode + addresses[1] + addresses[0]]
 
-    constant_register = [(TokenKeyword.a, a_address, 1),
-                         (TokenKeyword.b, b_address, 10),
-                         (TokenKeyword.c, c_address, 6452)]
+    literal_register = [(TokenKeyword.a, a_address, 1),
+                        (TokenKeyword.b, b_address, 10),
+                        (TokenKeyword.c, c_address, 6452)]
 
     @pytest.mark.parametrize('command_token, opcode', two_address_commands)
-    @pytest.mark.parametrize('token, address, value', constant_register)
-    def test_two_address_command_constant_to_register(self, parser, command_token, opcode,
-                                                      token, address, value):
+    @pytest.mark.parametrize('token, address, value', literal_register)
+    def test_two_address_command_literal_to_register(self, parser, command_token, opcode,
+                                                     token, address, value):
         tokens = [command_token, token, TokenLiteral.Int, value]
         instructions = parser.parse(tokens)
         assert instructions == [opcode + address + constant_address,
                                 dec_to_bin(value)]
 
-    constant_pregister = [(TokenKeyword.a, ap_address, 42),
-                          (TokenKeyword.b, bp_address, 17),
-                          (TokenKeyword.c, cp_address, 65535)]
+    literal_pregister = [(TokenKeyword.a, ap_address, 42),
+                         (TokenKeyword.b, bp_address, 17),
+                         (TokenKeyword.c, cp_address, 65535)]
 
     @pytest.mark.parametrize('command_token, opcode', two_address_commands)
-    @pytest.mark.parametrize('token, address, value', constant_pregister)
-    def test_two_address_command_constant_to_pointer_register(self, parser, command_token, opcode,
+    @pytest.mark.parametrize('token, address, value', literal_pregister)
+    def test_two_address_command_literal_to_pointer_register(self, parser, command_token, opcode,
                                                               token, address, value):
         tokens = [command_token, TokenDelimiter.LeftBracket, token,
                   TokenDelimiter.RightBracket, TokenLiteral.Int, value]
@@ -105,8 +105,8 @@ class TestParser:
                                 dec_to_bin(value)]
 
     @pytest.mark.parametrize('command_token, opcode', two_address_commands)
-    @pytest.mark.parametrize('token, address, value', constant_register)
-    def test_two_address_command_constant_pointer_to_register(self, parser, command_token, opcode,
+    @pytest.mark.parametrize('token, address, value', literal_register)
+    def test_two_address_command_literal_pointer_to_register(self, parser, command_token, opcode,
                                                               token, address, value):
         tokens = [command_token, token, TokenDelimiter.LeftBracket,
                   TokenLiteral.Int, value, TokenDelimiter.RightBracket]
@@ -130,7 +130,10 @@ class TestParser:
                       [TokenLiteral.Int],
                       [TokenName.Label],
                       [TokenDelimiter.LeftBracket],
-                      [TokenKeyword.Move, TokenKeyword.a, TokenLiteral.Int, TokenKeyword.Move]
+                      [TokenKeyword.Move, TokenKeyword.a, TokenLiteral.Int, TokenKeyword.Move],
+                      [TokenDelimiter.Colon, TokenKeyword.Move, TokenKeyword.a, TokenKeyword.b],
+                      [TokenDelimiter.Colon, TokenName.Label, TokenKeyword.Move,
+                       TokenKeyword.Move, TokenKeyword.a, TokenKeyword.b]
                       ]
 
     @pytest.mark.parametrize('tokens', invalid_syntax)
@@ -211,15 +214,15 @@ class TestParser:
         instructions = parser.parse(tokens)
         assert instructions == [opcode + unused_opcode + address]
 
-    constants = [10, 256, 5262]
+    literals = [10, 256, 5262]
 
     @pytest.mark.parametrize('command_token, opcode', source_address_commands)
-    @pytest.mark.parametrize('constant', constants)
-    def test_source_address_command_constant(self, parser, command_token, opcode, constant):
-        tokens = [command_token, TokenLiteral.Int, constant]
+    @pytest.mark.parametrize('literal', literals)
+    def test_source_address_command_literal(self, parser, command_token, opcode, literal):
+        tokens = [command_token, TokenLiteral.Int, literal]
         instructions = parser.parse(tokens)
         assert instructions == [opcode + unused_opcode + constant_address,
-                                dec_to_bin(constant)]
+                                dec_to_bin(literal)]
 
     push_commands = [(TokenKeyword.Push, push_opcode),
                      (TokenKeyword.Call, call_opcode)]
@@ -240,23 +243,66 @@ class TestParser:
         assert instructions == [opcode + spp_address + address]
 
     @pytest.mark.parametrize('keyword_token, opcode', push_commands)
-    @pytest.mark.parametrize('constant', constants)
-    def test_push_or_call_constant(self, parser, keyword_token, opcode, constant):
-        tokens = [keyword_token, TokenLiteral.Int, constant]
+    @pytest.mark.parametrize('literal', literals)
+    def test_push_or_call_literal(self, parser, keyword_token, opcode, literal):
+        tokens = [keyword_token, TokenLiteral.Int, literal]
         instructions = parser.parse(tokens)
         assert instructions == [opcode + spp_address + constant_address,
-                                dec_to_bin(constant)]
+                                dec_to_bin(literal)]
 
     def test_return(self, parser):
         tokens = [TokenKeyword.Return]
         instructions = parser.parse(tokens)
         assert instructions == [return_opcode + unused_opcode + spp_address]
 
-# use of labels
+    def test_jump_to_label_at_start(self, parser):
+        tokens = [TokenDelimiter.Colon, TokenName.Label, 'start',
+                  TokenKeyword.Jump, TokenName.Label, 'start']
+        instructions = parser.parse(tokens)
+        assert instructions == [jump_opcode + unused_opcode + constant_address,
+                                dec_to_bin(0)]
+
+    def test_jump_to_label_before_jump(self, parser):
+        tokens = [TokenKeyword.Add, TokenKeyword.a, TokenKeyword.b,
+                  TokenDelimiter.Colon, TokenName.Label, 'label',
+                  TokenKeyword.Add, TokenKeyword.a, TokenKeyword.b,
+                  TokenKeyword.Jump, TokenName.Label, 'label']
+        instructions = parser.parse(tokens)
+        assert instructions == [alu_opcode + alu_add + a_address + b_address,
+                                alu_opcode + alu_add + a_address + b_address,
+                                jump_opcode + unused_opcode + constant_address,
+                                dec_to_bin(1)]
+
+    def test_jump_to_label_after_jump(self, parser):
+        tokens = [TokenKeyword.Jump, TokenName.Label, 'end',
+                  TokenKeyword.Add, TokenKeyword.a, TokenKeyword.b,
+                  TokenKeyword.Add, TokenKeyword.a, TokenKeyword.b,
+                  TokenDelimiter.Colon, TokenName.Label, 'end',
+                  TokenKeyword.Shutdown]
+        instructions = parser.parse(tokens)
+        assert instructions == [jump_opcode + unused_opcode + constant_address, dec_to_bin(4),
+                                alu_opcode + alu_add + a_address + b_address,
+                                alu_opcode + alu_add + a_address + b_address,
+                                shutdown_opcode
+                                ]
+
+    def test_jump_to_label_no_linking(self, parser):
+        tokens = [TokenDelimiter.Colon, TokenName.Label, 'start',
+                  TokenKeyword.Jump, TokenName.Label, 'start']
+        instructions = parser.parse(tokens, link=False)
+        assert instructions == [jump_opcode + unused_opcode + constant_address,
+                                'start']
+
+# Add error checking for:
+# -label at end of file
+# -jump to non-existing label
+# -label not following name token
+# -value not following literal token
 
 # not implemented in lexer
-# import
 # variable declaration
+# use variable as address/value
+# import
 #
 # not(a) and b
 # not(a) or b

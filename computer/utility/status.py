@@ -3,6 +3,8 @@ from bitarray import bitarray
 from computer.chips.arithmetic import INC16
 from computer.opcodes import *
 from computer.utility.numbers import bin_to_dec, dec_to_bin
+from computer.assembler.parser import (no_address_commands, two_address_commands,
+                                       target_address_commands, source_address_commands)
 
 NULL = bitarray(16)
 
@@ -22,6 +24,31 @@ def get_instruction(cpu):
 
 
 def decode_instruction(instruction):
+    for token in no_address_commands:
+        if instruction == no_address_commands[token]:
+            return token.value
+
+    command = instruction[:8]
+    address_1 = instruction[8:12]
+    address_2 = instruction[12:]
+    decoded_address_1 = decode_address(address_1)
+    decoded_address_2 = decode_address(address_2)
+
+    for token in two_address_commands:
+        if command == two_address_commands[token]:
+            return f'{token.value} {decoded_address_1} {decoded_address_2}'
+
+    for token in target_address_commands:
+        if command == target_address_commands[token]:
+            return f'{token.value} {decoded_address_1}'
+
+    for token in source_address_commands:
+        if command == source_address_commands[token]:
+            return f'{token.value} {decoded_address_2}'
+    return f'Can\'t decode instruction {instruction}'
+
+
+def _decode_instruction(instruction):
     opcode_1 = instruction[:4]
     opcode_2 = instruction[4:8]
     address_1 = instruction[8:12]
@@ -30,6 +57,7 @@ def decode_instruction(instruction):
     decoded_address_1 = decode_address(address_1)
     decoded_address_2 = decode_address(address_2)
     addresses = f'{decoded_address_1} {decoded_address_2}'
+    command = f'Unable to decode opcode: {opcode_1 + opcode_2}'
     if instruction == reset_opcode:
         command = 'reset'
         addresses = ''
@@ -54,8 +82,6 @@ def decode_instruction(instruction):
     elif opcode_1 == hdd_opcode:
         if opcode_2 == hdd_read:
             command = 'hddread'
-    else:
-        command = f'Unable to decode opcode: {opcode_1+opcode_2}'
     return f'{command} {addresses}'
 
 

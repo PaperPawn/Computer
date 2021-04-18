@@ -1,4 +1,6 @@
 import sys
+import os
+
 from bitarray import bitarray
 
 from PyQt5.QtWidgets import QApplication, QMainWindow, QLabel, QListWidget, QListWidgetItem, QPushButton
@@ -33,6 +35,7 @@ class StatusWindow(QMainWindow):
         self.instructions = QListWidget(self)
         self.decoded = QListWidget(self)
 
+        self.instructions_shown = 100# 20
         self.instructions_label = QLabel(self)
         self.decoded_label = QLabel(self)
 
@@ -149,7 +152,7 @@ class StatusWindow(QMainWindow):
 
     def set_instructions(self):
         last_decoded = ''
-        for i in range(20):
+        for i in range(self.instructions_shown):
             address = dec_to_bin(i)
             instruction = self.emulator.cpu.ram_bus(NULL, address, 0)
             if 'constant' in last_decoded:
@@ -162,7 +165,7 @@ class StatusWindow(QMainWindow):
 
     def update_instructions(self):
         last_decoded = ''
-        for i in range(20):
+        for i in range(self.instructions_shown):
             address = dec_to_bin(i)
             instruction = self.emulator.cpu.ram_bus(NULL, address, 0)
             if 'constant' in last_decoded:
@@ -224,8 +227,20 @@ def main():
     cpu = CPU(ram, hdd)
     emulator = Emulator(cpu)
 
-    bootloader = get_bootloader()
-    emulator.load_instructions(bootloader)
+    # bootloader = get_bootloader()
+    # emulator.load_instructions(bootloader)
+
+    file_name = 'test.bin'
+    file_path = os.path.join(r'D:\Programmering\python\computer\computer\assembler',
+                             file_name)
+    binary = bitarray(0)
+    with open(file_path, 'rb') as file:
+        binary.fromfile(file)
+    instructions=[]
+    for i in range(int(len(binary)/16)):
+        instruction = binary[i * 16:(i + 1) * 16]
+        instructions.append(instruction)
+    emulator.load_instructions(instructions[1:])
 
     window = StatusWindow(emulator)
 

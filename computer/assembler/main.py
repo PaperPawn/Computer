@@ -18,6 +18,7 @@ def main():
     # print(f'Tokens: {tokens}')
     instructions = parser.parse(tokens)
     # print(f'Instructions: {instructions}')
+
     binary = dec_to_bin(len(instructions) + 1)
     for instruction in instructions:
         binary += instruction

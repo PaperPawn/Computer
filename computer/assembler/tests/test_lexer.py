@@ -33,16 +33,16 @@ class TestLexer:
                  ('c', TokenKeyword.c),
                  ('d', TokenKeyword.d),
                  ('sp', TokenKeyword.sp)]
-    constants = [1, 2, 3, 100, 543]
+    literals = [1, 2, 3, 100, 543]
 
-    @pytest.mark.parametrize('constant', constants)
+    @pytest.mark.parametrize('literal', literals)
     @pytest.mark.parametrize('register, register_token', registers)
-    def test_move_constant_to_register(self, lexer, constant, register, register_token):
-        line = f'move {register} {constant}'
+    def test_move_literal_to_register(self, lexer, literal, register, register_token):
+        line = f'move {register} {literal}'
         tokens = lexer.scan(line)
         assert tokens == [TokenKeyword.Move,
                           register_token,
-                          TokenLiteral.Int, constant]
+                          TokenLiteral.Int, literal]
 
     def test_move_lots_of_whitespace(self, lexer):
         line = '    move       b         sp'
@@ -211,7 +211,7 @@ class TestLexer:
         tokens = lexer.scan(line)
         assert tokens == [TokenKeyword.Call, TokenName.Label, 'func']
 
-    def test_call_function_by_constant(self, lexer):
+    def test_call_function_by_literal(self, lexer):
         line = 'call 1024'
         tokens = lexer.scan(line)
         assert tokens == [TokenKeyword.Call, TokenLiteral.Int, 1024]
@@ -231,6 +231,9 @@ class TestLexer:
         line = 'return'
         tokens = lexer.scan(line)
         assert tokens == [TokenKeyword.Return]
+
+    def test_declare_variable(self, lexer):
+        line = ''
 
 # variable declaration
 # import

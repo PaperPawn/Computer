@@ -54,3 +54,7 @@ class TestCPUResetIntegration(TestCPUIntegration, test_cpu.TestCPUReset):
 
 class TestCPUHDDIntegration(TestCPUIntegration, test_cpu.TestCPUHDD):
     pass
+
+
+class TestCpuCallReturnIntegration(TestCPUIntegration, test_cpu.TestCpuCallReturn):
+    pass

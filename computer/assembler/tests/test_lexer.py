@@ -1,6 +1,6 @@
 import pytest
 from computer.assembler.lexer import Lexer, LexerError
-from computer.assembler.tokens import TokenKeyword, TokenDelimiter, TokenConstant, TokenLabel
+from computer.assembler.tokens import TokenKeyword, TokenDelimiter, TokenLiteral, TokenName
 
 
 class TestLexer:
@@ -42,7 +42,7 @@ class TestLexer:
         tokens = lexer.scan(line)
         assert tokens == [TokenKeyword.Move,
                           register_token,
-                          TokenConstant(constant)]
+                          TokenLiteral.Int, constant]
 
     def test_move_lots_of_whitespace(self, lexer):
         line = '    move       b         sp'
@@ -71,7 +71,7 @@ class TestLexer:
         line = 'push 10 pop a'
         tokens = lexer.scan(line)
         assert tokens == [TokenKeyword.Push,
-                          TokenConstant(10),
+                          TokenLiteral.Int, 10,
                           TokenKeyword.Pop,
                           TokenKeyword.a]
 
@@ -79,25 +79,25 @@ class TestLexer:
         line = 'jump 2675'
         tokens = lexer.scan(line)
         assert tokens == [TokenKeyword.Jump,
-                          TokenConstant(2675)]
+                          TokenLiteral.Int, 2675]
 
     def test_jump_zero(self, lexer):
         line = 'jump_zero 345'
         tokens = lexer.scan(line)
         assert tokens == [TokenKeyword.JumpIfZero,
-                          TokenConstant(345)]
+                          TokenLiteral.Int, 345]
 
     def test_jump_neg(self, lexer):
         line = 'jump_neg 123786432'
         tokens = lexer.scan(line)
         assert tokens == [TokenKeyword.JumpIfNeg,
-                          TokenConstant(123786432)]
+                          TokenLiteral.Int, 123786432]
 
     def test_jump_overflow(self, lexer):
         line = 'jump_overflow 11'
         tokens = lexer.scan(line)
         assert tokens == [TokenKeyword.JumpIfOverflow,
-                          TokenConstant(11)]
+                          TokenLiteral.Int, 11]
 
     def test_line_break(self, lexer):
         line = '\nmove a b\n push a'
@@ -128,7 +128,7 @@ class TestLexer:
         tokens = lexer.scan(line)
         assert tokens == [token,
                           TokenKeyword.a,
-                          TokenConstant(1)]
+                          TokenLiteral.Int, 1]
 
     alu_commands_1 = [('neg', TokenKeyword.Negate),
                       ('inc', TokenKeyword.Inc),
@@ -167,7 +167,7 @@ class TestLexer:
                           TokenKeyword.b,
                           TokenKeyword.Add,
                           TokenKeyword.c,
-                          TokenConstant(3)]
+                          TokenLiteral.Int, 3]
 
     def test_comment_two_lines_1(self, lexer):
         line = 'move c b\n% move a b\n%add c 3'
@@ -196,7 +196,7 @@ class TestLexer:
         line = ':start move a b'
         tokens = lexer.scan(line)
         assert tokens == [TokenDelimiter.Colon,
-                          TokenLabel('start'),
+                          TokenName.Label, 'start',
                           TokenKeyword.Move,
                           TokenKeyword.a,
                           TokenKeyword.b]
@@ -204,14 +204,35 @@ class TestLexer:
     def test_jump_to_label(self, lexer):
         line = 'jump abc'
         tokens = lexer.scan(line)
-        assert tokens == [TokenKeyword.Jump,
-                          TokenLabel('abc')]
+        assert tokens == [TokenKeyword.Jump, TokenName.Label, 'abc']
+
+    def test_call_function_by_label(self, lexer):
+        line = 'call func'
+        tokens = lexer.scan(line)
+        assert tokens == [TokenKeyword.Call, TokenName.Label, 'func']
+
+    def test_call_function_by_constant(self, lexer):
+        line = 'call 1024'
+        tokens = lexer.scan(line)
+        assert tokens == [TokenKeyword.Call, TokenLiteral.Int, 1024]
+
+    def test_call_function_by_register(self, lexer):
+        line = 'call a'
+        tokens = lexer.scan(line)
+        assert tokens == [TokenKeyword.Call, TokenKeyword.a]
+
+    def test_call_function_by_pointer(self, lexer):
+        line = 'call [a]'
+        tokens = lexer.scan(line)
+        assert tokens == [TokenKeyword.Call, TokenDelimiter.LeftBracket,
+                          TokenKeyword.a, TokenDelimiter.RightBracket]
+
+    def test_return(self, lexer):
+        line = 'return'
+        tokens = lexer.scan(line)
+        assert tokens == [TokenKeyword.Return]
 
 # variable declaration
-
-# Not implementer in CPU
-# call
-# return
 # import
 
 # Never implement?s

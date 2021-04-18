@@ -1,10 +1,12 @@
-from computer.assembler.tokens import TokenKeyword, TokenDelimiter, TokenConstant, TokenLabel
+from computer.assembler.tokens import (TokenKeyword, TokenDelimiter,
+                                       TokenLiteral, TokenName)
 from computer.opcodes import *
 
 from computer.utility.numbers import dec_to_bin
 
-system_commands = {TokenKeyword.Shutdown: shutdown_opcode,
-                   TokenKeyword.Reset: reset_opcode}
+no_address_commands = {TokenKeyword.Shutdown: shutdown_opcode,
+                       TokenKeyword.Reset: reset_opcode,
+                       TokenKeyword.Return: return_opcode+unused_opcode+spp_address}
 two_address_commands = {TokenKeyword.Move: move_opcode,
                         TokenKeyword.Add: alu_opcode+alu_add,
                         TokenKeyword.Sub: alu_opcode+alu_sub,
@@ -24,7 +26,8 @@ source_address_commands = {TokenKeyword.Jump: jump_opcode,
                            TokenKeyword.JumpIfNeg: jump_neg_opcode,
                            TokenKeyword.JumpIfOverflow: jump_overflow_opcode,
                            TokenKeyword.HddSector: hdd_opcode+hdd_set_sector,
-                           TokenKeyword.Push: push_opcode}
+                           TokenKeyword.Push: push_opcode,
+                           TokenKeyword.Call: call_opcode}
 registers = {TokenKeyword.a: a_address,
              TokenKeyword.b: b_address,
              TokenKeyword.c: c_address,
@@ -57,8 +60,10 @@ class Parser:
             instruction = self.parse_target_address_command(token)
         elif token in source_address_commands:
             instruction = self.parse_source_address_command(token)
+        elif token in no_address_commands:
+            instruction = self.parse_no_address_command(token)
         else:
-            instruction = [system_commands[token]]
+            raise ParserError(f'Expected a valid command.\nGot: {token.value}.')
         return instruction
 
     def parse_two_address_command(self, token):
@@ -76,44 +81,46 @@ class Parser:
         opcode = target_address_commands[token]
         address_1, value = self.parse_address()
         if value is not None:
-            raise ParserError(f'Command {token.value} does not accept constants\n'
-                              f'Got: {value}')
+            raise ParserError(f'Command {token.value} does not accept constants.\n'
+                              f'Got: {value}.')
         address_2 = spp_address if token == TokenKeyword.Pop else unused_opcode
         return [opcode + address_1 + address_2]
 
     def parse_source_address_command(self, token):
         opcode = source_address_commands[token]
         address_1, value = self.parse_address()
-        address_2 = spp_address if token == TokenKeyword.Push else unused_opcode
+        address_2 = spp_address if token in [TokenKeyword.Push, TokenKeyword.Call] else unused_opcode
         instruction = [opcode + address_2 + address_1]
         if value is not None:
             instruction.append(dec_to_bin(value))
         return instruction
 
+    @staticmethod
+    def parse_no_address_command(token):
+        return [no_address_commands[token]]
+
     def parse_address(self):
         token = self.get_next_token()
         value = None
-        if isinstance(token, TokenConstant):
-            address = constant_address
-            value = token.value
+        is_pointer = False
+        if token == TokenDelimiter.LeftBracket:
+            is_pointer = True
+            token = self.get_next_token()
+
+        if token == TokenLiteral.Int:
+            address = constantp_address if is_pointer else constant_address
+            value = self.get_next_token()
+            if type(value) != int:
+                raise ParserError(f'Expected literal int value.\nGot {value}')
         elif token in registers:
-            address = registers[token]
-        elif token == TokenDelimiter.LeftBracket:
-            address, value = self.parse_pointer(value)
+            _registers = pointer_registers if is_pointer else registers
+            address = _registers[token]
         else:
             raise ParserError(f"Got unexpected token while parsing address.\n"
-                              f"Expected: constant, register or [\n"
-                              f"Got: {token.value}")
-        return address, value
-
-    def parse_pointer(self, value):
-        token = self.get_next_token()
-        if isinstance(token, TokenConstant):
-            address = constantp_address
-            value = token.value
-        else:
-            address = pointer_registers[token]
-        self.eat_token(TokenDelimiter.RightBracket)
+                              f"Expected: constant, register or [.\n"
+                              f"Got: {token.value}.")
+        if is_pointer:
+            self.eat_token(TokenDelimiter.RightBracket)
         return address, value
 
     def eat_token(self, expected):

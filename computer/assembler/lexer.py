@@ -1,17 +1,16 @@
-from computer.assembler.tokens import TokenKeyword, TokenDelimiter, TokenConstant, TokenLabel
+from computer.assembler.tokens import (TokenKeyword, TokenDelimiter,
+                                       TokenLiteral, TokenName)
 
-variable = 'abcdefghijklmnopqrstuvwqxyz_'
+variable_chars = 'abcdefghijklmnopqrstuvwqxyz_'
 numbers = '1234567890'
 whitespace = ' \n\t'
 comment = '%'
 
-registers = ['a', 'b', 'c', 'd', 'sp']
-command_tokens = {token.value: token for token in TokenKeyword if token not in registers}
-register_tokens = {token.value: token for token in TokenKeyword if token in registers}
+keyword_tokens = {token.value: token for token in TokenKeyword}
 delimiter_tokens = {token.value: token for token in TokenDelimiter}
 
 delimiters = ''.join(delimiter_tokens)
-valid_token_characters = variable + numbers + delimiters
+valid_token_characters = variable_chars + numbers + delimiters
 valid_characters = valid_token_characters + whitespace + comment
 
 
@@ -28,7 +27,10 @@ class Lexer:
 
             if self.characters and self.peek_next() in valid_token_characters:
                 token = self.scan_token()
-                tokens.append(token)
+                if type(token) == tuple:
+                    tokens.extend(token)
+                else:
+                    tokens.append(token)
         return tokens
 
     def strip_whitespace(self):
@@ -43,7 +45,7 @@ class Lexer:
     def scan_token(self):
         next_character = self.peek_next()
 
-        if next_character in variable:
+        if next_character in variable_chars:
             token = self.scan_name()
         elif next_character in numbers:
             token = self.scan_number()
@@ -53,23 +55,23 @@ class Lexer:
 
     def scan_label(self):
         self.get_next_character()
-        name = self.scan_generic(variable)
-        return TokenLabel(name)
+        name = self.scan_generic(variable_chars)
+        return TokenName.Label, name
 
     def scan_number(self):
         name = self.scan_generic(numbers)
-        return TokenConstant(int(name))
+        return TokenLiteral.Int, (int(name))
 
     def scan_name(self):
-        name = self.scan_generic(variable)
+        name = self.scan_generic(variable_chars)
         return self.get_token(name)
 
     def scan_delimiter(self):
         return delimiter_tokens[self.get_next_character()]
 
-    def scan_generic(self, token_type):
+    def scan_generic(self, characters):
         name = ''
-        while self.characters and self.peek_next() in token_type:
+        while self.characters and self.peek_next() in characters:
             character = self.get_next_character()
             name += character
         return name
@@ -85,12 +87,10 @@ class Lexer:
 
     @staticmethod
     def get_token(name):
-        if name in command_tokens:
-            token = command_tokens[name]
-        elif name in register_tokens:
-            token = register_tokens[name]
+        if name in keyword_tokens:
+            token = keyword_tokens[name]
         else:
-            token = TokenLabel(name)
+            token = TokenName.Label, name
         return token
 
 

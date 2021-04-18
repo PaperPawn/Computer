@@ -29,6 +29,8 @@ class TokenKeyword(Enum):
     JumpIfZero = 'jump_zero'
     JumpIfNeg = 'jump_neg'
     JumpIfOverflow = 'jump_overflow'
+    Call = 'call'
+    Return = 'return'
     HddRead = 'hddread'
     HddWrite = 'hddwrite'
     HddSector = 'hddsector'
@@ -45,17 +47,9 @@ class TokenDelimiter(Enum):
     Colon = ':'
 
 
-class TokenConstant:
-    def __init__(self, value):
-        self.value = value
-
-    def __eq__(self, other):
-        return self.value == other.value
+class TokenLiteral(Enum):
+    Int = 'int'
 
 
-class TokenLabel:
-    def __init__(self, value):
-        self.value = value
-
-    def __eq__(self, other):
-        return self.value == other.value
+class TokenName(Enum):
+    Label = 'label'

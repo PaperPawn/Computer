@@ -34,6 +34,11 @@ jump_zero_opcode = bitarray('01100000')
 jump_neg_opcode = bitarray('01010000')
 jump_overflow_opcode = bitarray('01110000')
 
+call_opcode = bitarray('01000100')
+# push_opcode = bitarray('00110000')
+# pop_opcode = bitarray('00111000')
+return_opcode = bitarray('01000010')
+
 unused_opcode = bitarray('0000')
 
 # address as value

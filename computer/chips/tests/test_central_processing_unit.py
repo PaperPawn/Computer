@@ -1091,3 +1091,67 @@ class TestCPUHDD(TestCPU):
 
         assert cpu.hdd.data[512:512+16] == value_1
         assert cpu.hdd.data[512+16:512+32] == value_2
+
+
+class TestCpuCallReturn(TestCPU):
+    def test_call_register(self, cpu):
+        stack_frame = dec_to_bin(1024)
+        function_address = dec_to_bin(52)
+        instructions = [move_opcode + sp_address + constant_address, stack_frame,
+                        move_opcode + a_address + constant_address, function_address,
+                        call_opcode + spp_address + a_address]
+        self.load_instructions(cpu.ram, instructions)
+
+        cpu()
+        cpu.tick()
+
+        cpu()
+        cpu.tick()
+
+        assert cpu() == 0
+        cpu.tick()
+
+        assert cpu.pc.register.value == function_address
+        assert cpu.ram_bus(UNUSED, stack_frame, 0) == dec_to_bin(5)
+        assert cpu.sp.value == dec_to_bin(1023)
+
+    def test_call_constant(self, cpu):
+        stack_frame = dec_to_bin(1024)
+        function_address = dec_to_bin(52)
+        instructions = [move_opcode + sp_address + constant_address, stack_frame,
+                        call_opcode + spp_address + constant_address, function_address]
+        self.load_instructions(cpu.ram, instructions)
+
+        cpu()
+        cpu.tick()
+
+        assert cpu() == 0
+        cpu.tick()
+
+        assert cpu.pc.register.value == function_address
+        assert cpu.ram_bus(UNUSED, stack_frame, 0) == dec_to_bin(4)
+        assert cpu.sp.value == dec_to_bin(1023)
+
+    def test_return(self, cpu):
+        stack_frame = dec_to_bin(1024)
+        function = dec_to_bin(8)
+        instructions = [move_opcode + sp_address + constant_address, stack_frame,
+                        call_opcode + spp_address + constant_address, function,
+                        shutdown_opcode,
+                        shutdown_opcode,
+                        shutdown_opcode,
+                        shutdown_opcode,
+                        move_opcode + a_address + constant_address, dec_to_bin(10),
+                        return_opcode + unused_opcode + spp_address]
+        self.load_instructions(cpu.ram, instructions)
+
+        for _ in range(3):
+            cpu()
+            cpu.tick()
+
+        assert cpu() == 0
+        cpu.tick()
+
+        assert cpu.a.value == dec_to_bin(10)
+        assert cpu.pc.register.value == dec_to_bin(4)
+        assert cpu.sp.value == dec_to_bin(1024)

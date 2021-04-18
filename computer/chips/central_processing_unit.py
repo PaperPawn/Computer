@@ -33,6 +33,8 @@ class CPU:
         jump if neg
         jump if overflow
         move
+        call
+        return
         hdd op
         reset
         shutdown
@@ -142,7 +144,11 @@ class CPU:
         opcode = instruction[:4]
         secondary_opcode = instruction[4:8]
 
-        is_pop = AND(opcode[3], secondary_opcode[0])
+        jump_setting = DMUX4WAY(opcode[1], opcode[2:4])
+        is_call = AND(jump_setting[0], secondary_opcode[1])
+        is_return = AND(jump_setting[0], secondary_opcode[2])
+
+        is_pop = OR(AND(opcode[3], secondary_opcode[0]), is_return)
         sp_pop, _ = INC16(sp_value)
         used_sp_value = MUX16(sp_value, sp_pop, is_pop)
 
@@ -191,32 +197,41 @@ class CPU:
         status[2] = overflow
         self.status(status, opcode[0])
 
-        selected_target = DMUX(1, target_is_pointer)
-        selected_register = DMUX8WAY(selected_target[0], target_address[1:])
+        load_ram = OR(target_is_pointer, is_call)
+        load_register = NOT(load_ram)
+
+        selected_register = DMUX8WAY(load_register, target_address[1:])
         memory_address = MUX8WAY16(a_value, b_value, c_value, d_value,
                                    sp_value, constant_value, NULL_ADDRESS, NULL_ADDRESS,
                                    target_address[1:])
 
+        # Handle return address if call
+        inc_constant_address, _ = INC16(constant_address)
+        source_is_constant = AND(source_address[1], source_address[3])
+        return_address = MUX16(constant_address, inc_constant_address, source_is_constant)
+
         # Load moved value
-        load = AND(NOT(opcode[1]), opcode[2])
-        self.ram_bus(result, memory_address, AND(selected_target[1], load))
-        self.a(result, AND(selected_register[0], load))
-        self.b(result, AND(selected_register[1], load))
-        self.c(result, AND(selected_register[2], load))
-        self.d(result, AND(selected_register[3], load))
+        move_value = MUX16(result, return_address, is_call)
+        load = OR(AND(NOT(opcode[1]), opcode[2]), is_call)
+        self.ram_bus(move_value, memory_address, AND(load_ram, load))
+        self.a(move_value, AND(selected_register[0], load))
+        self.b(move_value, AND(selected_register[1], load))
+        self.c(move_value, AND(selected_register[2], load))
+        self.d(move_value, AND(selected_register[3], load))
 
         # Update stack pointer
         sp_push, _ = INC16(NOT16(sp_value))
         sp_push = NOT16(sp_push)
-        updated_sp = MUX16(sp_push, sp_pop, secondary_opcode[0])
-        new_sp_value = MUX16(result, updated_sp, opcode[3])
-        load_sp = MUX(selected_register[4], 1, opcode[3])
+        updated_sp = MUX16(sp_push, sp_pop, is_pop)
+        is_call_or_return = OR(is_call, is_return)
+        is_stack_op = OR(opcode[3], is_call_or_return)
+        new_sp_value = MUX16(result, updated_sp, is_stack_op)
+        load_sp = MUX(selected_register[4], 1, is_stack_op)
         self.sp(new_sp_value, load_sp)
 
         # Set PC
         status = self.status(NULL_ADDRESS, 0)
 
-        jump_setting = DMUX4WAY(opcode[1], opcode[2:4])
         do_jump = OR(OR(jump_setting[0],  # jump
                         AND(jump_setting[1], status[1]),  # jump neg
                         ),
@@ -225,10 +240,9 @@ class CPU:
                         )
                      )
 
-        inc_pc_address, _ = INC16(constant_address)
-        next_pc_address = MUX16(inc_pc_address, result, do_jump)
+        next_pc_address = MUX16(inc_constant_address, result, do_jump)
 
-        load = OR(OR(AND(source_address[1], source_address[3]),
+        load = OR(OR(source_is_constant,
                      AND(target_address[1], target_address[3])),
                   do_jump)
         inc = NOT(load)

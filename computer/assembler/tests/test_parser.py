@@ -266,7 +266,7 @@ class TestParser:
                                 dec_to_bin(literal)]
 
     def test_return(self, parser):
-        tokens = [Token(Keyword.Return , 'return', 1)]
+        tokens = [Token(Keyword.Return, 'return', 1)]
         instructions = parser.parse(tokens)
         assert instructions == [return_opcode + unused_opcode + spp_address]
 

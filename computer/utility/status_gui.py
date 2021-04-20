@@ -77,7 +77,7 @@ class StatusWindow(QMainWindow):
     def setup_instructions_list(self):
         instructions_x = 400
         instructions_y = 40
-        instructions_width = 120
+        instructions_width = 150
         instructions_height = 350
 
         font_size = 12
@@ -159,8 +159,9 @@ class StatusWindow(QMainWindow):
                 decoded = str(bin_to_dec(instruction))
             else:
                 decoded = decode_instruction(instruction)
-            self.add_instruction(instruction)
-            self.add_decoded(decoded)
+
+            self.add_instruction(f'{i}: {get_bitarray_string(instruction)}')
+            self.add_decoded(f'{i}: {decoded}')
             last_decoded = decoded
 
     def update_instructions(self):
@@ -172,9 +173,8 @@ class StatusWindow(QMainWindow):
                 decoded = str(bin_to_dec(instruction))
             else:
                 decoded = decode_instruction(instruction)
-
-            self.instructions.item(i).setText(get_bitarray_string(instruction))
-            self.decoded.item(i).setText(decoded)
+            self.instructions.item(i).setText(f'{i}: {get_bitarray_string(instruction)}')
+            self.decoded.item(i).setText(f'{i}: {decoded}')
             last_decoded = decoded
 
     def highlight_current_instruction(self):
@@ -183,7 +183,7 @@ class StatusWindow(QMainWindow):
         self.decoded.item(pc).setSelected(True)
 
     def add_instruction(self, instruction):
-        item = QListWidgetItem(get_bitarray_string(instruction))
+        item = QListWidgetItem(instruction)
         self.instructions.addItem(item)
 
     def add_decoded(self, decoded):

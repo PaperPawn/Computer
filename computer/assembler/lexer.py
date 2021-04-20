@@ -1,13 +1,13 @@
-from computer.assembler.tokens import (TokenKeyword, TokenDelimiter,
-                                       TokenLiteral, TokenName)
+from computer.assembler.tokens import (Token, Keyword, Delimiter,
+                                       Literal, Name)
 
 variable_chars = 'abcdefghijklmnopqrstuvwqxyz_'
 numbers = '1234567890'
 whitespace = ' \n\t'
 comment = '%'
 
-keyword_tokens = {token.value: token for token in TokenKeyword}
-delimiter_tokens = {token.value: token for token in TokenDelimiter}
+keyword_tokens = {token.value: token for token in Keyword}
+delimiter_tokens = {token.value: token for token in Delimiter}
 
 delimiters = ''.join(delimiter_tokens)
 valid_token_characters = variable_chars + numbers + delimiters
@@ -17,9 +17,11 @@ valid_characters = valid_token_characters + whitespace + comment
 class Lexer:
     def __init__(self):
         self.characters = []
+        self.line = 1
 
     def scan(self, line):
         self.characters = [char for char in line]
+        self.line = 1
         tokens = []
         while self.characters:
             self.strip_whitespace()
@@ -53,21 +55,17 @@ class Lexer:
             token = self.scan_delimiter()
         return token
 
-    def scan_label(self):
-        self.get_next_character()
-        name = self.scan_generic(variable_chars)
-        return TokenName.Label, name
-
-    def scan_number(self):
-        name = self.scan_generic(numbers)
-        return TokenLiteral.Int, (int(name))
-
     def scan_name(self):
         name = self.scan_generic(variable_chars)
         return self.get_token(name)
 
+    def scan_number(self):
+        name = self.scan_generic(numbers)
+        return self.make_token(Literal.Int, int(name))
+
     def scan_delimiter(self):
-        return delimiter_tokens[self.get_next_character()]
+        character = self.get_next_character()
+        return self.make_token(delimiter_tokens[character], character)
 
     def scan_generic(self, characters):
         name = ''
@@ -79,19 +77,25 @@ class Lexer:
     def peek_next(self):
         character = self.characters[0]
         if character not in valid_characters:
-            raise LexerError(f'{character} not a valid character')
+            raise LexerError(f'Unexpected character in line {self.line}'
+                             f'{character} is not a valid character')
         return character
 
     def get_next_character(self):
-        return self.characters.pop(0)
+        character = self.characters.pop(0)
+        if character == '\n':
+            self.line += 1
+        return character
 
-    @staticmethod
-    def get_token(name):
+    def get_token(self, name):
         if name in keyword_tokens:
             token = keyword_tokens[name]
         else:
-            token = TokenName.Label, name
-        return token
+            token = Name.Label
+        return self.make_token(token, name)
+
+    def make_token(self, token_type, value):
+        return Token(token_type, value, self.line)
 
 
 class LexerError(Exception):

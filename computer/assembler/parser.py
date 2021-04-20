@@ -1,43 +1,43 @@
-from computer.assembler.tokens import (TokenKeyword, TokenDelimiter,
-                                       TokenLiteral, TokenName)
+from computer.assembler.tokens import (Keyword, Delimiter,
+                                       Literal, Name)
 from computer.opcodes import *
 
 from computer.utility.numbers import dec_to_bin
 
-no_address_commands = {TokenKeyword.Shutdown: shutdown_opcode,
-                       TokenKeyword.Reset: reset_opcode,
-                       TokenKeyword.Return: return_opcode+unused_opcode+spp_address}
-two_address_commands = {TokenKeyword.Move: move_opcode,
-                        TokenKeyword.Add: alu_opcode+alu_add,
-                        TokenKeyword.Sub: alu_opcode+alu_sub,
-                        TokenKeyword.And: alu_opcode+alu_and,
-                        TokenKeyword.Or: alu_opcode+alu_or,
-                        TokenKeyword.Xor: alu_opcode+alu_xor,
-                        TokenKeyword.Compare: alu_no_move_opcode+alu_sub,
-                        TokenKeyword.HddWrite: hdd_opcode+hdd_write,
-                        TokenKeyword.HddRead: hdd_opcode+hdd_read}
-target_address_commands = {TokenKeyword.Inc: alu_opcode+alu_inc,
-                           TokenKeyword.Dec: alu_opcode+alu_dec,
-                           TokenKeyword.Negate: alu_opcode+alu_neg,
-                           TokenKeyword.Not: alu_opcode+alu_not,
-                           TokenKeyword.Pop: pop_opcode}
-source_address_commands = {TokenKeyword.Jump: jump_opcode,
-                           TokenKeyword.JumpIfZero: jump_zero_opcode,
-                           TokenKeyword.JumpIfNeg: jump_neg_opcode,
-                           TokenKeyword.JumpIfOverflow: jump_overflow_opcode,
-                           TokenKeyword.HddSector: hdd_opcode+hdd_set_sector,
-                           TokenKeyword.Push: push_opcode,
-                           TokenKeyword.Call: call_opcode}
-registers = {TokenKeyword.a: a_address,
-             TokenKeyword.b: b_address,
-             TokenKeyword.c: c_address,
-             TokenKeyword.d: d_address,
-             TokenKeyword.sp: sp_address}
-pointer_registers = {TokenKeyword.a: ap_address,
-                     TokenKeyword.b: bp_address,
-                     TokenKeyword.c: cp_address,
-                     TokenKeyword.d: dp_address,
-                     TokenKeyword.sp: spp_address}
+no_address_commands = {Keyword.Shutdown: shutdown_opcode,
+                       Keyword.Reset: reset_opcode,
+                       Keyword.Return: return_opcode + unused_opcode + spp_address}
+two_address_commands = {Keyword.Move: move_opcode,
+                        Keyword.Add: alu_opcode + alu_add,
+                        Keyword.Sub: alu_opcode + alu_sub,
+                        Keyword.And: alu_opcode + alu_and,
+                        Keyword.Or: alu_opcode + alu_or,
+                        Keyword.Xor: alu_opcode + alu_xor,
+                        Keyword.Compare: alu_no_move_opcode + alu_sub,
+                        Keyword.HddWrite: hdd_opcode + hdd_write,
+                        Keyword.HddRead: hdd_opcode + hdd_read}
+target_address_commands = {Keyword.Inc: alu_opcode + alu_inc,
+                           Keyword.Dec: alu_opcode + alu_dec,
+                           Keyword.Negate: alu_opcode + alu_neg,
+                           Keyword.Not: alu_opcode + alu_not,
+                           Keyword.Pop: pop_opcode}
+source_address_commands = {Keyword.Jump: jump_opcode,
+                           Keyword.JumpIfZero: jump_zero_opcode,
+                           Keyword.JumpIfNeg: jump_neg_opcode,
+                           Keyword.JumpIfOverflow: jump_overflow_opcode,
+                           Keyword.HddSector: hdd_opcode + hdd_set_sector,
+                           Keyword.Push: push_opcode,
+                           Keyword.Call: call_opcode}
+registers = {Keyword.a: a_address,
+             Keyword.b: b_address,
+             Keyword.c: c_address,
+             Keyword.d: d_address,
+             Keyword.sp: sp_address}
+pointer_registers = {Keyword.a: ap_address,
+                     Keyword.b: bp_address,
+                     Keyword.c: cp_address,
+                     Keyword.d: dp_address,
+                     Keyword.sp: spp_address}
 
 
 class Parser:
@@ -65,32 +65,32 @@ class Parser:
 
     def parse_next_instruction(self):
         token = self.get_next_token()
-        if token == TokenDelimiter.Colon:
+        if token.type == Delimiter.Colon:
             self.parse_label()
             token = self.get_next_token()
 
-        if token in two_address_commands:
+        if token.type in two_address_commands:
             instruction = self.parse_two_address_command(token)
-        elif token in target_address_commands:
+        elif token.type in target_address_commands:
             instruction = self.parse_target_address_command(token)
-        elif token in source_address_commands:
+        elif token.type in source_address_commands:
             instruction = self.parse_source_address_command(token)
-        elif token in no_address_commands:
+        elif token.type in no_address_commands:
             instruction = self.parse_no_address_command(token)
         else:
             raise ParserError(f"Expected a valid command.\nGot: '{token.value}'.")
         return instruction
 
     def parse_label(self):
-        self.eat_token(TokenName.Label)
-        label = self.get_next_token()
+        token = self.get_next_token()
+        label = token.value
         if type(label) != str:
-            raise ParserError(f'{TokenName.Label} must be followed by a name.\n'
+            raise ParserError(f'{Name.Label} must be followed by a name.\n'
                               f"Got: '{label}'")
         self.labels[label] = dec_to_bin(len(self.instructions))
 
     def parse_two_address_command(self, token):
-        opcode = two_address_commands[token]
+        opcode = two_address_commands[token.type]
         address_1, value_1 = self.parse_address()
         address_2, value_2 = self.parse_address()
         instruction = [opcode + address_1 + address_2]
@@ -101,18 +101,18 @@ class Parser:
         return instruction
 
     def parse_target_address_command(self, token):
-        opcode = target_address_commands[token]
+        opcode = target_address_commands[token.type]
         address_1, value = self.parse_address()
         if value is not None:
             raise ParserError(f"Command '{token.value}'' does not accept constants.\n"
                               f"Got: '{value}'.")
-        address_2 = spp_address if token == TokenKeyword.Pop else unused_opcode
+        address_2 = spp_address if token.type == Keyword.Pop else unused_opcode
         return [opcode + address_1 + address_2]
 
     def parse_source_address_command(self, token):
-        opcode = source_address_commands[token]
+        opcode = source_address_commands[token.type]
         address_1, value = self.parse_address()
-        address_2 = spp_address if token in [TokenKeyword.Push, TokenKeyword.Call] else unused_opcode
+        address_2 = spp_address if token.type in [Keyword.Push, Keyword.Call] else unused_opcode
         instruction = [opcode + address_2 + address_1]
         if value is not None:
             instruction.append(value)
@@ -120,39 +120,41 @@ class Parser:
 
     @staticmethod
     def parse_no_address_command(token):
-        return [no_address_commands[token]]
+        return [no_address_commands[token.type]]
 
     def parse_address(self):
+        if not self.tokens:
+            raise ParserError('Expected an address. Got end of file.')
         token = self.get_next_token()
         value = None
         is_pointer = False
-        if token == TokenDelimiter.LeftBracket:
+        if token.type == Delimiter.LeftBracket:
             is_pointer = True
             token = self.get_next_token()
 
-        if token == TokenName.Label:
-            value = self.get_next_token()
+        if token.type == Name.Label:
+            value = token.value
             address = constant_address
-        elif token == TokenLiteral.Int:
+        elif token.type == Literal.Int:
+            value = token.value
             address = constantp_address if is_pointer else constant_address
-            value = self.get_next_token()
             if type(value) != int:
                 raise ParserError(f"Expected literal int value.\nGot '{value}'")
             value = dec_to_bin(value)
-        elif token in registers:
+        elif token.type in registers:
             _registers = pointer_registers if is_pointer else registers
-            address = _registers[token]
+            address = _registers[token.type]
         else:
             raise ParserError(f"Got unexpected token while parsing address.\n"
                               f"Expected: constant, register or [.\n"
                               f"Got: '{token.value}'.")
         if is_pointer:
-            self.eat_token(TokenDelimiter.RightBracket)
+            self.eat_token(Delimiter.RightBracket)
         return address, value
 
     def eat_token(self, expected):
         token = self.get_next_token()
-        if token != expected:
+        if token.type != expected:
             raise ParserError(f"Expected: {expected.value}\nGot {token.value}")
 
     def get_next_token(self):

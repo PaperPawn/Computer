@@ -1,5 +1,5 @@
 from enum import Enum
-
+from collections import namedtuple
 # TokenKeyword = Enum('TokenKeyword', 'Shutdown Reset Move Push Pop '
 #                                     'Add Sub And Or Xor Negate Inc Dec '
 #                                     'Jump JumpIfZero JumpIfNeg JumpIfOverflow '
@@ -8,8 +8,10 @@ from enum import Enum
 # TokenRegister = Enum('TokenRegister', 'a b c d sp')
 # TokenDelimiter = Enum('TokenDelimiter', 'LeftBracket RightBracket Colon')
 
+Token = namedtuple('Token', ('type', 'value', 'line'))
 
-class TokenKeyword(Enum):
+
+class Keyword(Enum):
     Shutdown = 'shutdown'
     Reset = 'reset'
     Move = 'move'
@@ -41,15 +43,15 @@ class TokenKeyword(Enum):
     sp = 'sp'
 
 
-class TokenDelimiter(Enum):
+class Delimiter(Enum):
     LeftBracket = '['
     RightBracket = ']'
     Colon = ':'
 
 
-class TokenLiteral(Enum):
+class Literal(Enum):
     Int = 'int'
 
 
-class TokenName(Enum):
+class Name(Enum):
     Label = 'label'

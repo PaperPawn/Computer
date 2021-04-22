@@ -5,6 +5,7 @@ from computer.assembler.tokens import Token, Keyword, Delimiter, Literal, Name
 from computer.opcodes import *
 from computer.utility.numbers import dec_to_bin
 
+token_alloc = Token(Keyword.Alloc, 'alloc', 1)
 token_move = Token(Keyword.Move, 'move', 1)
 token_add = Token(Keyword.Add, 'add', 1)
 token_pop = Token(Keyword.Pop, 'pop', 1)
@@ -138,24 +139,6 @@ class TestParser:
         assert instructions == [opcode + constantp_address + a_address,
                                 dec_to_bin(value)]
 
-    invalid_syntax = [[token_move, token_a,
-                       token_right_bracket, token_b, token_right_bracket],
-                      [token_move, token_a,
-                       token_left_bracket, token_b, token_left_bracket],
-                      [Token(Literal.Int, 1, 1)],
-                      [Token(Name.Label, 'abc', 1)],
-                      [token_left_bracket],
-                      [token_move, token_a, Token(Literal.Int, 1, 1), token_move],
-                      [token_colon, token_move, token_a, token_b],
-                      [token_colon, Name.Label, token_move,
-                       token_move, token_a, token_b]
-                      ]
-
-    @pytest.mark.parametrize('tokens', invalid_syntax)
-    def test_invalid_syntax(self, parser, tokens):
-        with pytest.raises(ParserError):
-            parser.parse(tokens)
-
     target_address_commands = [(Token(Keyword.Inc, 'inc', 1), alu_opcode + alu_inc),
                                (Token(Keyword.Dec, 'dec', 1), alu_opcode + alu_dec),
                                (Token(Keyword.Negate, 'neg', 1), alu_opcode + alu_neg),
@@ -270,6 +253,12 @@ class TestParser:
         instructions = parser.parse(tokens)
         assert instructions == [return_opcode + unused_opcode + spp_address]
 
+    def test_bare_label_no_linking(self, parser):
+        tokens = [token_colon, Token(Name.Label, 'start', 1)]
+        instructions = parser.parse(tokens, link=False)
+        assert instructions == []
+        assert parser.labels == {'start': 0}
+
     def test_jump_to_label_at_start(self, parser):
         tokens = [token_colon, Token(Name.Label, 'start', 1),
                   token_jump, Token(Name.Label, 'start', 2)]
@@ -308,15 +297,71 @@ class TestParser:
         assert instructions == [jump_opcode + unused_opcode + constant_address,
                                 'start']
 
+    names = ['variable', 'abc']
+    sizes = [1, 2, 3]
+
+    @pytest.mark.parametrize('size', sizes)
+    @pytest.mark.parametrize('name', names)
+    def test_alloc_no_linking(self, parser, name, size):
+        tokens = [Token(Keyword.Alloc, 'alloc', 1),
+                  Token(Name.Label, name, 1),
+                  Token(Literal.Int, size, 1)]
+        instructions = parser.parse(tokens, link=False)
+        assert instructions == []
+        assert parser.variables == {name: size}
+
+    def test_use_alloc_data_no_linking(self, parser):
+        tokens = [token_alloc,
+                  Token(Name.Label, 'var', 1),
+                  Token(Literal.Int, 1, 1),
+                  token_move, token_a, Token(Literal.Int, 0, 2),
+                  token_move,
+                  token_left_bracket, Token(Name.Label, 'var', 3), token_right_bracket,
+                  token_a
+                  ]
+        instructions = parser.parse(tokens, link=False)
+        assert instructions == [move_opcode+a_address+constant_address,
+                                dec_to_bin(0),
+                                move_opcode+constantp_address+a_address,
+                                'var']
+
+    msg_invalid_syntax = [['Double right brackets', [token_move, token_a, token_right_bracket,
+                                                     token_b, token_right_bracket]],
+                          ['double left brackets', [token_move, token_a, token_left_bracket,
+                                                    token_b, token_left_bracket]],
+                          ['Literal as first token', [Token(Literal.Int, 1, 1)]],
+                          ['Label as first token', [Token(Name.Label, 'abc', 1)]],
+                          ['Bare left bracket', [token_left_bracket]],
+                          ['Bare move command', [token_move, token_a, Token(Literal.Int, 1, 1), token_move]],
+                          ['No label after colon', [token_colon, token_move, token_a, token_b]],
+                          ['Two move keywords', [token_move, token_move, token_a, token_b]],
+                          ['Jump to missing label', [token_jump, Token(Name.Label, 'missing', 1)]],
+                          ['Missing label after alloc', [token_alloc, token_a]],
+                          ['Missing size after alloc', [token_alloc, Token(Name.Label, 'var', 1), token_move]],
+                          ['Moving literal to label', [token_alloc, Token(Name.Label, 'var', 1), Token(Literal.Int, 1, 1),
+                                                       token_move, token_left_bracket,
+                                                       Token(Name.Label, 'var', 1), token_right_bracket,
+                                                       Token(Literal.Int, 1, 1)]]
+                          ]
+    ids = [syn[0] for syn in msg_invalid_syntax]
+    invalid_syntax_1 = [syn[1] for syn in msg_invalid_syntax]
+    invalid_syntax_2 = [syn.copy() for syn in invalid_syntax_1]
+
+    @pytest.mark.parametrize('tokens', invalid_syntax_1, ids=ids)
+    def test_invalid_syntax(self, parser, tokens):
+        with pytest.raises(ParserError):
+            parser.parse(tokens)
+
+    @pytest.mark.parametrize('tokens', invalid_syntax_2, ids=ids)
+    def test_invalid_syntax_no_linking(self, parser, tokens):
+        with pytest.raises(ParserError):
+            parser.parse(tokens, link=False)
+
 # Add error checking for:
-# -label at end of file
-# -jump to non-existing label
-# -label not following name token
-# -value not following literal token
+# declare label with same name as variable
+# use variable as address/value
 
 # not implemented in lexer
-# variable declaration
-# use variable as address/value
 # import
 #
 # not(a) and b

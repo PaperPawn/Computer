@@ -43,9 +43,11 @@ pointer_registers = {Keyword.a: ap_address,
 class Parser:
     def __init__(self, debug=False):
         self.tokens = None
-        self.labels = {}
         self.instructions = []
         self.debug = debug
+
+        self.labels = {}
+        self.variables = {}
 
     def parse(self, tokens, link=True):
         self.tokens = tokens
@@ -54,20 +56,31 @@ class Parser:
             if self.debug:
                 print(instruction)
             self.instructions.extend(instruction)
-        if link:
-            self.link_labels()
+        self.link_labels(link)
         return self.instructions
 
-    def link_labels(self):
+    def link_labels(self, link):
         for i, instruction in enumerate(self.instructions):
             if type(instruction) == str:
-                self.instructions[i] = self.labels[instruction]
+                if instruction in self.labels:
+                    if link:
+                        self.instructions[i] = dec_to_bin(self.labels[instruction])
+                elif instruction in self.variables:
+                    pass
+                else:
+                    raise ParserError(f"Refering to undeclared label '{instruction}' in instruction {i}")
 
     def parse_next_instruction(self):
         token = self.get_next_token()
         if token.type == Delimiter.Colon:
             self.parse_label()
-            token = self.get_next_token()
+            return []
+
+        if token.type == Keyword.Alloc:
+            name = self.get_next_token(Name.Label)
+            size = self.get_next_token(Literal.Int)
+            self.variables[name.value] = size.value
+            return []
 
         if token.type in two_address_commands:
             instruction = self.parse_two_address_command(token)
@@ -78,27 +91,30 @@ class Parser:
         elif token.type in no_address_commands:
             instruction = self.parse_no_address_command(token)
         else:
-            raise ParserError(f"Expected a valid command.\nGot: '{token.value}'.")
+            raise ParserError(f"Expected a valid command on line {token.line}.\nGot: '{token.value}'.")
         return instruction
 
     def parse_label(self):
-        token = self.get_next_token()
+        token = self.get_next_token(Name.Label)
         label = token.value
-        if type(label) != str:
-            raise ParserError(f'{Name.Label} must be followed by a name.\n'
-                              f"Got: '{label}'")
-        self.labels[label] = dec_to_bin(len(self.instructions))
+        self.labels[label] = len(self.instructions)
 
     def parse_two_address_command(self, token):
         opcode = two_address_commands[token.type]
         address_1, value_1 = self.parse_address()
         address_2, value_2 = self.parse_address()
         instruction = [opcode + address_1 + address_2]
-        if value_1 is not None:
+        self.add_literal(instruction, value_1, value_2)
+        return instruction
+
+    @staticmethod
+    def add_literal(instruction, value_1, value_2):
+        if value_1 is not None and value_2 is not None:
+            raise ParserError('Can\'t move from literal/label to literal/label')
+        elif value_1 is not None:
             instruction.append(value_1)
         elif value_2 is not None:
             instruction.append(value_2)
-        return instruction
 
     def parse_target_address_command(self, token):
         opcode = target_address_commands[token.type]
@@ -132,33 +148,32 @@ class Parser:
             is_pointer = True
             token = self.get_next_token()
 
-        if token.type == Name.Label:
-            value = token.value
-            address = constant_address
-        elif token.type == Literal.Int:
+        if token.type in [Name.Label, Literal.Int]:
             value = token.value
             address = constantp_address if is_pointer else constant_address
-            if type(value) != int:
-                raise ParserError(f"Expected literal int value.\nGot '{value}'")
-            value = dec_to_bin(value)
+            if token.type == Literal.Int:
+                if type(value) != int:
+                    raise ParserError(f"Expected literal int value.\nGot '{value}'")
+                value = dec_to_bin(value)
         elif token.type in registers:
             _registers = pointer_registers if is_pointer else registers
             address = _registers[token.type]
         else:
-            raise ParserError(f"Got unexpected token while parsing address.\n"
-                              f"Expected: constant, register or [.\n"
+            raise ParserError(f"Got unexpected token on line {token.line} while parsing address.\n"
+                              f"Expected: 'constant', 'register' or '['.\n"
                               f"Got: '{token.value}'.")
         if is_pointer:
             self.eat_token(Delimiter.RightBracket)
         return address, value
 
     def eat_token(self, expected):
-        token = self.get_next_token()
-        if token.type != expected:
-            raise ParserError(f"Expected: {expected.value}\nGot {token.value}")
+        self.get_next_token(expected)
 
-    def get_next_token(self):
+    def get_next_token(self, expected=None):
         token = self.tokens.pop(0)
+        if expected is not None and token.type != expected:
+            raise ParserError(f"Expected '{expected.value}' on line {token.line}\n"
+                              f"Got '{token.value}'" )
         if self.debug:
             print(token)
         return token

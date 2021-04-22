@@ -249,8 +249,17 @@ class TestLexer:
         tokens = lexer.scan(line)
         assert tokens == [Token(Keyword.Return, 'return', 1)]
 
-    def test_declare_variable(self, lexer):
-        line = ''
+    names = ['variable', 'abc']
+    sizes = [1, 2, 3]
+
+    @pytest.mark.parametrize('size', sizes)
+    @pytest.mark.parametrize('name', names)
+    def test_declare_variable(self, lexer, name, size):
+        line = f'alloc {name} {size}'
+        tokens = lexer.scan(line)
+        assert tokens == [Token(Keyword.Alloc, 'alloc', 1),
+                          Token(Name.Label, name, 1),
+                          Token(Literal.Int, size, 1)]
 
 # Tests
 # line counting with
@@ -258,7 +267,6 @@ class TestLexer:
 # - literals
 # - delimeters
 
-# variable declaration
 # import
 
 # Never implement?s

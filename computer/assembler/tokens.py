@@ -12,6 +12,7 @@ Token = namedtuple('Token', ('type', 'value', 'line'))
 
 
 class Keyword(Enum):
+    Alloc = 'alloc'
     Shutdown = 'shutdown'
     Reset = 'reset'
     Move = 'move'

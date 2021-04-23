@@ -1,5 +1,5 @@
 from computer.assembler.tokens import (Token, Keyword, Delimiter,
-                                       Literal, Name)
+                                       Literal, Label)
 
 variable_chars = 'abcdefghijklmnopqrstuvwqxyz_'
 numbers = '1234567890'
@@ -91,7 +91,7 @@ class Lexer:
         if name in keyword_tokens:
             token = keyword_tokens[name]
         else:
-            token = Name.Label
+            token = Label.Name
         return self.make_token(token, name)
 
     def make_token(self, token_type, value):

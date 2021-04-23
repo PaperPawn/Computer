@@ -1,7 +1,7 @@
 import pytest
 
 from computer.assembler.parser import Parser, ParserError
-from computer.assembler.tokens import Token, Keyword, Delimiter, Literal, Name
+from computer.assembler.tokens import Token, Keyword, Delimiter, Literal, Label
 from computer.opcodes import *
 from computer.utility.numbers import dec_to_bin
 
@@ -253,109 +253,115 @@ class TestParser:
         instructions = parser.parse(tokens)
         assert instructions == [return_opcode + unused_opcode + spp_address]
 
-    def test_bare_label_no_linking(self, parser):
-        tokens = [token_colon, Token(Name.Label, 'start', 1)]
-        instructions = parser.parse(tokens, link=False)
+    def test_bare_label(self, parser):
+        tokens = [token_colon, Token(Label.Name, 'start', 1)]
+        instructions = parser.parse(tokens)
         assert instructions == []
         assert parser.labels == {'start': 0}
 
     def test_jump_to_label_at_start(self, parser):
-        tokens = [token_colon, Token(Name.Label, 'start', 1),
-                  token_jump, Token(Name.Label, 'start', 2)]
+        tokens = [token_colon, Token(Label.Name, 'start', 1),
+                  token_jump, Token(Label.Name, 'start', 2)]
         instructions = parser.parse(tokens)
         assert instructions == [jump_opcode + unused_opcode + constant_address,
-                                dec_to_bin(0)]
+                                Token(Label.Name, 'start', 2)
+                                ]
 
     def test_jump_to_label_before_jump(self, parser):
         tokens = [token_add, token_a, token_b,
-                  token_colon, Token(Name.Label, 'label', 2),
+                  token_colon, Token(Label.Name, 'label', 2),
                   token_add, token_a, token_b,
-                  token_jump, Token(Name.Label, 'label', 4)]
+                  token_jump, Token(Label.Name, 'label', 4)]
         instructions = parser.parse(tokens)
         assert instructions == [alu_opcode + alu_add + a_address + b_address,
                                 alu_opcode + alu_add + a_address + b_address,
                                 jump_opcode + unused_opcode + constant_address,
-                                dec_to_bin(1)]
+                                Token(Label.Name, 'label', 4)
+                                ]
 
     def test_jump_to_label_after_jump(self, parser):
-        tokens = [token_jump, Token(Name.Label, 'end', 1),
+        tokens = [token_jump, Token(Label.Name, 'end', 1),
                   token_add, token_a, token_b,
                   token_add, token_a, token_b,
-                  token_colon, Token(Name.Label, 'end', 4),
+                  token_colon, Token(Label.Name, 'end', 4),
                   Token(Keyword.Shutdown, 'shutdown', 5)]
         instructions = parser.parse(tokens)
-        assert instructions == [jump_opcode + unused_opcode + constant_address, dec_to_bin(4),
+        assert instructions == [jump_opcode + unused_opcode + constant_address,
+                                Token(Label.Name, 'end', 1),
                                 alu_opcode + alu_add + a_address + b_address,
                                 alu_opcode + alu_add + a_address + b_address,
                                 shutdown_opcode
                                 ]
-
-    def test_jump_to_label_no_linking(self, parser):
-        tokens = [token_colon, Token(Name.Label, 'start', 1),
-                  token_jump, Token(Name.Label, 'start', 2)]
-        instructions = parser.parse(tokens, link=False)
-        assert instructions == [jump_opcode + unused_opcode + constant_address,
-                                'start']
 
     names = ['variable', 'abc']
     sizes = [1, 2, 3]
 
     @pytest.mark.parametrize('size', sizes)
     @pytest.mark.parametrize('name', names)
-    def test_alloc_no_linking(self, parser, name, size):
+    def test_alloc(self, parser, name, size):
         tokens = [Token(Keyword.Alloc, 'alloc', 1),
-                  Token(Name.Label, name, 1),
+                  Token(Label.Name, name, 1),
                   Token(Literal.Int, size, 1)]
-        instructions = parser.parse(tokens, link=False)
+        instructions = parser.parse(tokens)
         assert instructions == []
-        assert parser.variables == {name: size}
+        assert parser.variables[name] == size
 
-    def test_use_alloc_data_no_linking(self, parser):
+    def test_use_alloc_data(self, parser):
         tokens = [token_alloc,
-                  Token(Name.Label, 'var', 1),
+                  Token(Label.Name, 'var', 1),
                   Token(Literal.Int, 1, 1),
                   token_move, token_a, Token(Literal.Int, 0, 2),
                   token_move,
-                  token_left_bracket, Token(Name.Label, 'var', 3), token_right_bracket,
+                  token_left_bracket, Token(Label.Name, 'var', 3), token_right_bracket,
                   token_a
                   ]
-        instructions = parser.parse(tokens, link=False)
+        instructions = parser.parse(tokens)
         assert instructions == [move_opcode+a_address+constant_address,
                                 dec_to_bin(0),
                                 move_opcode+constantp_address+a_address,
-                                'var']
+                                Token(Label.Name, 'var', 3)]
+
+    def test_KEYBOARD_label(self, parser):
+        token_keyboard_label = Token(Label.Name, 'KEYBOARD', 1)
+        tokens = [token_move, token_a, token_left_bracket,
+                  token_keyboard_label, token_right_bracket]
+        instructions = parser.parse(tokens)
+        assert instructions == [move_opcode+a_address+constantp_address,
+                                token_keyboard_label]
+
+    def test_SCREEN_label(self, parser):
+        token_screen_label = Token(Label.Name, 'SCREEN', 1)
+        tokens = [token_move, token_a, token_left_bracket,
+                  token_screen_label, token_right_bracket]
+        instructions = parser.parse(tokens)
+        assert instructions == [move_opcode+a_address+constantp_address,
+                                token_screen_label]
 
     msg_invalid_syntax = [['Double right brackets', [token_move, token_a, token_right_bracket,
                                                      token_b, token_right_bracket]],
                           ['double left brackets', [token_move, token_a, token_left_bracket,
                                                     token_b, token_left_bracket]],
                           ['Literal as first token', [Token(Literal.Int, 1, 1)]],
-                          ['Label as first token', [Token(Name.Label, 'abc', 1)]],
+                          ['Label as first token', [Token(Label.Name, 'abc', 1)]],
                           ['Bare left bracket', [token_left_bracket]],
                           ['Bare move command', [token_move, token_a, Token(Literal.Int, 1, 1), token_move]],
                           ['No label after colon', [token_colon, token_move, token_a, token_b]],
                           ['Two move keywords', [token_move, token_move, token_a, token_b]],
-                          ['Jump to missing label', [token_jump, Token(Name.Label, 'missing', 1)]],
+                          ['Jump to missing label', [token_jump, Token(Label.Name, 'missing', 1)]],
                           ['Missing label after alloc', [token_alloc, token_a]],
-                          ['Missing size after alloc', [token_alloc, Token(Name.Label, 'var', 1), token_move]],
-                          ['Moving literal to label', [token_alloc, Token(Name.Label, 'var', 1), Token(Literal.Int, 1, 1),
+                          ['Missing size after alloc', [token_alloc, Token(Label.Name, 'var', 1), token_move]],
+                          ['Moving literal to label', [token_alloc, Token(Label.Name, 'var', 1), Token(Literal.Int, 1, 1),
                                                        token_move, token_left_bracket,
-                                                       Token(Name.Label, 'var', 1), token_right_bracket,
+                                                       Token(Label.Name, 'var', 1), token_right_bracket,
                                                        Token(Literal.Int, 1, 1)]]
                           ]
     ids = [syn[0] for syn in msg_invalid_syntax]
-    invalid_syntax_1 = [syn[1] for syn in msg_invalid_syntax]
-    invalid_syntax_2 = [syn.copy() for syn in invalid_syntax_1]
+    invalid_syntax = [syn[1] for syn in msg_invalid_syntax]
 
-    @pytest.mark.parametrize('tokens', invalid_syntax_1, ids=ids)
+    @pytest.mark.parametrize('tokens', invalid_syntax, ids=ids)
     def test_invalid_syntax(self, parser, tokens):
         with pytest.raises(ParserError):
             parser.parse(tokens)
-
-    @pytest.mark.parametrize('tokens', invalid_syntax_2, ids=ids)
-    def test_invalid_syntax_no_linking(self, parser, tokens):
-        with pytest.raises(ParserError):
-            parser.parse(tokens, link=False)
 
 # Add error checking for:
 # declare label with same name as variable

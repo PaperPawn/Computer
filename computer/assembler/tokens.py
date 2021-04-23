@@ -1,12 +1,5 @@
 from enum import Enum
 from collections import namedtuple
-# TokenKeyword = Enum('TokenKeyword', 'Shutdown Reset Move Push Pop '
-#                                     'Add Sub And Or Xor Negate Inc Dec '
-#                                     'Jump JumpIfZero JumpIfNeg JumpIfOverflow '
-#                                     'HddRead HddWrite HddSector '
-#                                     'a b c d sp')
-# TokenRegister = Enum('TokenRegister', 'a b c d sp')
-# TokenDelimiter = Enum('TokenDelimiter', 'LeftBracket RightBracket Colon')
 
 Token = namedtuple('Token', ('type', 'value', 'line'))
 
@@ -54,5 +47,5 @@ class Literal(Enum):
     Int = 'int'
 
 
-class Name(Enum):
-    Label = 'label'
+class Label(Enum):
+    Name = 'label'

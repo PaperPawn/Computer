@@ -1,5 +1,5 @@
-from computer.assembler.tokens import (Keyword, Delimiter,
-                                       Literal, Name)
+from computer.assembler.tokens import (Token, Keyword, Delimiter,
+                                       Literal, Label)
 from computer.opcodes import *
 
 from computer.utility.numbers import dec_to_bin
@@ -47,28 +47,23 @@ class Parser:
         self.debug = debug
 
         self.labels = {}
-        self.variables = {}
+        self.variables = {'KEYBOARD': None, 'SCREEN': None}
 
-    def parse(self, tokens, link=True):
+    def parse(self, tokens):
         self.tokens = tokens
         while self.tokens:
             instruction = self.parse_next_instruction()
             if self.debug:
                 print(instruction)
             self.instructions.extend(instruction)
-        self.link_labels(link)
+        self.check_labels()
         return self.instructions
 
-    def link_labels(self, link):
-        for i, instruction in enumerate(self.instructions):
-            if type(instruction) == str:
-                if instruction in self.labels:
-                    if link:
-                        self.instructions[i] = dec_to_bin(self.labels[instruction])
-                elif instruction in self.variables:
-                    pass
-                else:
-                    raise ParserError(f"Refering to undeclared label '{instruction}' in instruction {i}")
+    def check_labels(self):
+        used_names = list(self.labels) + list(self.variables)
+        for instruction in self.instructions:
+            if type(instruction) == Token and instruction.value not in used_names:
+                raise ParserError(f"Refering to undeclared label '{instruction.value}' in line {instruction.line}")
 
     def parse_next_instruction(self):
         token = self.get_next_token()
@@ -77,7 +72,7 @@ class Parser:
             return []
 
         if token.type == Keyword.Alloc:
-            name = self.get_next_token(Name.Label)
+            name = self.get_next_token(Label.Name)
             size = self.get_next_token(Literal.Int)
             self.variables[name.value] = size.value
             return []
@@ -95,7 +90,7 @@ class Parser:
         return instruction
 
     def parse_label(self):
-        token = self.get_next_token(Name.Label)
+        token = self.get_next_token(Label.Name)
         label = token.value
         self.labels[label] = len(self.instructions)
 
@@ -104,11 +99,11 @@ class Parser:
         address_1, value_1 = self.parse_address()
         address_2, value_2 = self.parse_address()
         instruction = [opcode + address_1 + address_2]
-        self.add_literal(instruction, value_1, value_2)
+        self.add_literal_instruction(instruction, value_1, value_2)
         return instruction
 
     @staticmethod
-    def add_literal(instruction, value_1, value_2):
+    def add_literal_instruction(instruction, value_1, value_2):
         if value_1 is not None and value_2 is not None:
             raise ParserError('Can\'t move from literal/label to literal/label')
         elif value_1 is not None:
@@ -148,13 +143,15 @@ class Parser:
             is_pointer = True
             token = self.get_next_token()
 
-        if token.type in [Name.Label, Literal.Int]:
-            value = token.value
+        if token.type in [Label.Name, Literal.Int]:
+            # value = token.value
             address = constantp_address if is_pointer else constant_address
+            if token.type == Label.Name:
+                value = token
             if token.type == Literal.Int:
-                if type(value) != int:
-                    raise ParserError(f"Expected literal int value.\nGot '{value}'")
-                value = dec_to_bin(value)
+                if type(token.value) != int:
+                    raise ParserError(f"Expected literal int value.\nGot '{token.value}'")
+                value = dec_to_bin(token.value)
         elif token.type in registers:
             _registers = pointer_registers if is_pointer else registers
             address = _registers[token.type]

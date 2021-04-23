@@ -1,6 +1,6 @@
 import pytest
 from computer.assembler.lexer import Lexer, LexerError
-from computer.assembler.tokens import Token, Keyword, Delimiter, Literal, Name
+from computer.assembler.tokens import Token, Keyword, Delimiter, Literal, Label
 
 
 class TestLexer:
@@ -207,7 +207,7 @@ class TestLexer:
         line = ':start move a b'
         tokens = lexer.scan(line)
         assert tokens == [Token(Delimiter.Colon, ':', 1),
-                          Token(Name.Label, 'start', 1),
+                          Token(Label.Name, 'start', 1),
                           Token(Keyword.Move, 'move', 1),
                           Token(Keyword.a, 'a', 1),
                           Token(Keyword.b, 'b', 1)]
@@ -216,13 +216,13 @@ class TestLexer:
         line = 'jump abc'
         tokens = lexer.scan(line)
         assert tokens == [Token(Keyword.Jump, 'jump', 1),
-                          Token(Name.Label, 'abc', 1)]
+                          Token(Label.Name, 'abc', 1)]
 
     def test_call_function_by_label(self, lexer):
         line = 'call func'
         tokens = lexer.scan(line)
         assert tokens == [Token(Keyword.Call, 'call', 1),
-                          Token(Name.Label, 'func', 1)]
+                          Token(Label.Name, 'func', 1)]
 
     def test_call_function_by_literal(self, lexer):
         line = 'call 1024'
@@ -258,7 +258,7 @@ class TestLexer:
         line = f'alloc {name} {size}'
         tokens = lexer.scan(line)
         assert tokens == [Token(Keyword.Alloc, 'alloc', 1),
-                          Token(Name.Label, name, 1),
+                          Token(Label.Name, name, 1),
                           Token(Literal.Int, size, 1)]
 
 # Tests
@@ -267,6 +267,7 @@ class TestLexer:
 # - literals
 # - delimeters
 
+# CAPITAL letters
 # import
 
 # Never implement?s

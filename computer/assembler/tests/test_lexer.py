@@ -261,13 +261,26 @@ class TestLexer:
                           Token(Label.Name, name, 1),
                           Token(Literal.Int, size, 1)]
 
-# Tests
-# line counting with
-# - comments
-# - literals
-# - delimeters
+    def test_KEYBOARD_pointer(self, lexer):
+        line = 'move a [KEYBOARD]'
+        tokens = lexer.scan(line)
+        assert tokens == [Token(Keyword.Move, 'move', 1),
+                          Token(Keyword.a, 'a', 1),
+                          Token(Delimiter.LeftBracket, '[', 1),
+                          Token(Label.Name, 'KEYBOARD', 1),
+                          Token(Delimiter.RightBracket, ']', 1),
+                          ]
 
-# CAPITAL letters
+    def test_SCREEN_pointer(self, lexer):
+        line = 'move a [SCREEN]'
+        tokens = lexer.scan(line)
+        assert tokens == [Token(Keyword.Move, 'move', 1),
+                          Token(Keyword.a, 'a', 1),
+                          Token(Delimiter.LeftBracket, '[', 1),
+                          Token(Label.Name, 'SCREEN', 1),
+                          Token(Delimiter.RightBracket, ']', 1),
+                          ]
+
 # import
 
 # Never implement?s

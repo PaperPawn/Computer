@@ -353,7 +353,19 @@ class TestParser:
                           ['Moving literal to label', [token_alloc, Token(Label.Name, 'var', 1), Token(Literal.Int, 1, 1),
                                                        token_move, token_left_bracket,
                                                        Token(Label.Name, 'var', 1), token_right_bracket,
-                                                       Token(Literal.Int, 1, 1)]]
+                                                       Token(Literal.Int, 1, 1)]],
+                          ['Declaring two labels with same name', [token_colon, Token(Label.Name, 'abc', 1),
+                                                                   token_colon, Token(Label.Name, 'abc', 1)]],
+                          ['Alloc to same label twice', [token_alloc, Token(Label.Name, 'abc', 1),
+                                                         Token(Literal.Int, 1, 1),
+                                                         token_alloc, Token(Label.Name, 'abc', 1),
+                                                         Token(Literal.Int, 1, 1)]],
+                          ['Declaring allocated label', [token_alloc, Token(Label.Name, 'abc', 1),
+                                                         Token(Literal.Int, 1, 1),
+                                                         token_colon, Token(Label.Name, 'abc', 1)]],
+                          ['Allocating declated label', [token_colon, Token(Label.Name, 'abc', 1),
+                                                         token_alloc, Token(Label.Name, 'abc', 1),
+                                                         Token(Literal.Int, 1, 1)]]
                           ]
     ids = [syn[0] for syn in msg_invalid_syntax]
     invalid_syntax = [syn[1] for syn in msg_invalid_syntax]
@@ -362,10 +374,6 @@ class TestParser:
     def test_invalid_syntax(self, parser, tokens):
         with pytest.raises(ParserError):
             parser.parse(tokens)
-
-# Add error checking for:
-# declare label with same name as variable
-# use variable as address/value
 
 # not implemented in lexer
 # import

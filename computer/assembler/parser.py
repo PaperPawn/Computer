@@ -60,10 +60,13 @@ class Parser:
         return self.instructions
 
     def check_labels(self):
-        used_names = list(self.labels) + list(self.variables)
         for instruction in self.instructions:
-            if type(instruction) == Token and instruction.value not in used_names:
+            if type(instruction) == Token and instruction.value not in self.declared_labels:
                 raise ParserError(f"Refering to undeclared label '{instruction.value}' in line {instruction.line}")
+
+    @property
+    def declared_labels(self):
+        return list(self.labels) + list(self.variables)
 
     def parse_next_instruction(self):
         token = self.get_next_token()
@@ -72,9 +75,11 @@ class Parser:
             return []
 
         if token.type == Keyword.Alloc:
-            name = self.get_next_token(Label.Name)
+            label = self.get_next_token(Label.Name)
             size = self.get_next_token(Literal.Int)
-            self.variables[name.value] = size.value
+            if label.value in self.declared_labels:
+                raise ParserError(f"Allocating to existing label '{label.value}' on line {token.line}")
+            self.variables[label.value] = size.value
             return []
 
         if token.type in two_address_commands:
@@ -92,6 +97,8 @@ class Parser:
     def parse_label(self):
         token = self.get_next_token(Label.Name)
         label = token.value
+        if label in self.declared_labels:
+            raise ParserError(f"Declaring existing label '{label}' on line {token.line}")
         self.labels[label] = len(self.instructions)
 
     def parse_two_address_command(self, token):

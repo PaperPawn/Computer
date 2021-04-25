@@ -8,9 +8,7 @@ from PyQt5.QtWidgets import (QApplication, QMainWindow, QLabel, QLineEdit,
 from PyQt5.QtGui import QFont
 from PyQt5.QtCore import Qt, pyqtSlot # QTimer, QObject, QThread, pyqtSignal,
 
-from computer.emulator import Emulator, get_hdd_with_test_program, get_bootloader
-from computer.chips.central_processing_unit import CPU
-from computer.chips.memory import RAM32K
+from computer.emulator import make_emulator
 
 from computer.utility.status import decode_instruction
 from computer.utility.strings import get_bitarray_string
@@ -224,9 +222,8 @@ class StatusWindow(QMainWindow):
     def on_run_until(self):
         instruction = int(self.until_input.text())
         current_instruction = 0
-        shutdown = False
-        while not shutdown and current_instruction != instruction:
-            shutdown = self.emulator.tick()
+        while not self.emulator.shutdown and current_instruction != instruction:
+            self.emulator.tick()
             current_instruction = bin_to_dec(self.emulator.cpu.pc.register.value)
         self.update()
 
@@ -239,29 +236,7 @@ class StatusWindow(QMainWindow):
 def main():
     app = QApplication(sys.argv)
 
-    ram = RAM32K()
-
-    hdd = get_hdd_with_test_program()
-
-    cpu = CPU(ram, hdd)
-    emulator = Emulator(cpu)
-
-    bootloader = get_bootloader()
-    emulator.load_binary(bootloader)
-    # emulator.load_instructions(bootloader)
-
-    # file_name = 'test.bin'
-    # file_path = os.path.join(r'D:\Programmering\python\computer\computer\assembler',
-    #                          file_name)
-    # binary = bitarray(0)
-    # with open(file_path, 'rb') as file:
-    #     binary.fromfile(file)
-    # instructions=[]
-    # for i in range(int(len(binary)/16)):
-    #     instruction = binary[i * 16:(i + 1) * 16]
-    #     instructions.append(instruction)
-    # emulator.load_instructions(instructions[1:])
-
+    emulator = make_emulator()
     window = StatusWindow(emulator)
 
     sys.exit(app.exec())

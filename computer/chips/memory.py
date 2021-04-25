@@ -60,9 +60,7 @@ class RAM8X:
 
     def _call_faster(self, value, address, load):
         dmux_load = DMUX8WAY(1, address)
-
         i = dmux_load.index(1)
-
         return self.rams[i](value, address[3:], load)
     __call__ = _call_faster
 
@@ -86,11 +84,9 @@ class RAM2X:
         return MUX16(out[0], out[1], address)
 
     def _call_faster(self, value, address, load):
-        dmux_load = DMUX(1, address)
-
-        i = dmux_load.index(1)
-
-        return self.rams[i](value, address[1:], load)
+        # dmux_load = DMUX(1, address)
+        # i = dmux_load.index(1)
+        return self.rams[address[0]](value, address[1:], load)
     __call__ = _call_faster
 
     def tick(self):

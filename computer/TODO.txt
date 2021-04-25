@@ -1,0 +1,17 @@
+StatusGUI:
+- Add stack
+- Add hex and bin
+
+Screen:
+- Add support for reading screen
+- Add support for keyboard
+
+CMD:
+- Add assembler to path
+
+EMU Compiler
+- Make lexer
+- Figure out AST
+- Make parser
+- Make eas frontend
+- Make nasm frontend?

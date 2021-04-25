@@ -252,7 +252,7 @@ class CPU:
         return shutdown
 
     def ram_bus(self, value, address, load):
-        return self.ram(value, address[1:], load)
+        return self.ram(value, address, load)
 
     def tick(self):
         self.a.tick()

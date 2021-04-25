@@ -1,7 +1,7 @@
 import os
 
 from computer.chips.central_processing_unit import CPU
-from computer.chips.memory import RAM32K
+from computer.chips.optimized.memory import CombinedRAM
 from computer.io.harddisk import HardDisk
 # from computer.io.screen import Screen
 
@@ -58,7 +58,7 @@ class Emulator:
         for i in range(size):
             instruction = binary[i*16:(i+1)*16]
             address = dec_to_bin(i)
-            self.cpu.ram(instruction, address[1:], 1)
+            self.cpu.ram(instruction, address, 1)
         self.cpu.ram.tick()
 
     def run(self):
@@ -79,24 +79,24 @@ class Emulator:
 
 
 def main():
-    ram = RAM32K()
-
-    hdd = get_hdd_with_test_program()
-
-    cpu = CPU(ram, hdd)
-    emulator = Emulator(cpu, verbose=True)
-
-    bootloader = get_bootloader()
-    # emulator.load_instructions(bootloader)
-    emulator.load_binary(bootloader)
+    emulator = make_emulator(verbose=True)
 
     emulator.run()
     print('Emulation completed')
 
 
-def get_hdd_with_test_program():
+def make_emulator(verbose=False):
+    ram = CombinedRAM()
+    hdd = get_hdd_with_loaded_program('draw_square.bin')
+    cpu = CPU(ram, hdd)
+    emulator = Emulator(cpu, verbose)
+    bootloader = get_bootloader()
+    emulator.load_binary(bootloader)
+    return emulator
+
+
+def get_hdd_with_loaded_program(file_name='test.bin'):
     hdd = HardDisk()
-    file_name = 'test.bin'
     file_path = os.path.join(r'D:\Programmering\python\computer\computer\assembler',
                              file_name)
     hdd.load_data(file_path)

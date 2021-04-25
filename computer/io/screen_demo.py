@@ -208,8 +208,8 @@ def main():
 
     app = QApplication(sys.argv)
 
-    width = 600
-    height = 400
+    width = 512
+    height = 256
     window = Window(width, height)
     # window.screen.bits.setall(0)
     # window.run_thread_task(width, height)

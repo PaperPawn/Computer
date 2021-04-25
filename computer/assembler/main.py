@@ -8,7 +8,8 @@ from computer.utility.status import decode_instruction
 
 
 def main():
-    file_name = 'test'
+    file_name = 'draw_square'
+    # file_name = 'test'
     # file_name = 'bootloader'
     in_file_path = f'{file_name}.eas'
     out_file_path = f'{file_name}.bin'

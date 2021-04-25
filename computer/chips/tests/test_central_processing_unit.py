@@ -33,7 +33,7 @@ class MockRam:
         self.next_memory = {}
 
     def __call__(self, value, address, load):
-        i = bin_to_dec(bitarray('0') + address)
+        i = bin_to_dec(address)
         out = self.memory.get(i, bitarray(16))
         if load:
             self.next_memory[i] = value

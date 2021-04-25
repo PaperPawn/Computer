@@ -275,9 +275,11 @@ class TestRam4K:
 
 
 class TestRam8K:
-    def test_set_then_get_no_mock(self):
-        ram = RAM8K()
+    @pytest.fixture
+    def ram(self):
+        return RAM8K()
 
+    def test_set_then_get_no_mock(self, ram):
         value_1 = INT_ONE
         address_1 = bitarray('1101011011101')
 
@@ -299,9 +301,11 @@ class TestRam8K:
 
 
 class TestRam32K:
-    def test_set_then_get_no_mock(self):
-        ram = RAM32K()
+    @pytest.fixture
+    def ram(self):
+        return RAM32K()
 
+    def test_set_then_get_no_mock(self, ram):
         value_1 = INT_ONE
         address_1 = bitarray('011101010111101')
 
@@ -323,9 +327,11 @@ class TestRam32K:
 
 
 class TestCombinedRAM:
-    def test_set_then_get_no_mock(self):
-        ram = CombinedRAM()
+    @pytest.fixture
+    def ram(self):
+        return CombinedRAM()
 
+    def test_set_then_get_no_mock(self, ram):
         # Up to 32 767 -> 32K Ram
         # From 32768 to 40959 -> 8K Screen memory
         # 40960 -> Keyboard register
@@ -360,7 +366,7 @@ class TestCombinedRAM:
         assert ram(UNUSED, screen_address, 0) == value_3
         assert ram(UNUSED, keyboard_address, 0) == value_4
 
-        assert ram.screen(UNUSED, ZEROS, 0) == value_3
+        assert ram.screen(UNUSED, ZEROS[3:], 0) == value_3
         assert ram.keyboard(UNUSED, 0) == value_4
 
 

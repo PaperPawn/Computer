@@ -1,6 +1,6 @@
 import pytest
 
-from computer.chips.memory import RAM32K
+from computer.chips.memory import CombinedRAM
 
 from computer.chips.tests import test_central_processing_unit as test_cpu
 
@@ -10,13 +10,13 @@ from computer.utility.numbers import dec_to_bin
 class TestCPUIntegration:
     @staticmethod
     def make_ram():
-        return RAM32K()
+        return CombinedRAM()
 
     @staticmethod
     def load_instructions(ram, instructions):
         for i, instruction in enumerate(instructions):
             address = dec_to_bin(i)
-            ram(instruction, address[1:], 1)
+            ram(instruction, address, 1)
         ram.tick()
 
 

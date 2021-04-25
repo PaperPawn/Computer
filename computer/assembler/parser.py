@@ -48,7 +48,7 @@ class Parser:
 
         self.labels = {}
         self.variables = {}
-        self.built_ins = ['KEYBOARD', 'SCREEN']
+        self.built_ins = {'KEYBOARD': 40960, 'SCREEN': 32768, 'BP': 32767}
 
     def parse(self, tokens):
         self.tokens = tokens
@@ -67,12 +67,12 @@ class Parser:
 
     @property
     def declared_labels(self):
-        return list(self.labels) + list(self.variables) + self.built_ins
+        return list(self.labels) + list(self.variables) + list(self.built_ins)
 
     def parse_next_instruction(self):
         token = self.get_next_token()
         if token.type == Delimiter.Colon:
-            self.parse_label()
+            self.parse_declare_label()
             return []
 
         if token.type == Keyword.Alloc:
@@ -95,7 +95,7 @@ class Parser:
             raise ParserError(f"Expected a valid command on line {token.line}.\nGot: '{token.value}'.")
         return instruction
 
-    def parse_label(self):
+    def parse_declare_label(self):
         token = self.get_next_token(Label.Name)
         label = token.value
         if label in self.declared_labels:
@@ -152,10 +152,12 @@ class Parser:
             token = self.get_next_token()
 
         if token.type in [Label.Name, Literal.Int]:
-            # value = token.value
             address = constantp_address if is_pointer else constant_address
             if token.type == Label.Name:
-                value = token
+                if token.value in self.built_ins:
+                    value = dec_to_bin(self.built_ins[token.value])
+                else:
+                    value = token
             if token.type == Literal.Int:
                 if type(token.value) != int:
                     raise ParserError(f"Expected literal int value.\nGot '{token.value}'")

@@ -326,16 +326,26 @@ class TestParser:
         tokens = [token_move, token_a, token_left_bracket,
                   token_keyboard_label, token_right_bracket]
         instructions = parser.parse(tokens)
-        assert instructions == [move_opcode+a_address+constantp_address,
-                                token_keyboard_label]
+        keyboard_address = dec_to_bin(40960)
+        assert instructions == [move_opcode + a_address + constantp_address,
+                                keyboard_address]
 
     def test_SCREEN_label(self, parser):
         token_screen_label = Token(Label.Name, 'SCREEN', 1)
         tokens = [token_move, token_a, token_left_bracket,
                   token_screen_label, token_right_bracket]
         instructions = parser.parse(tokens)
-        assert instructions == [move_opcode+a_address+constantp_address,
-                                token_screen_label]
+        screen_address = dec_to_bin(32768)
+        assert instructions == [move_opcode + a_address + constantp_address,
+                                screen_address]
+
+    def test_BP_label(self, parser):
+        token_bp_label = Token(Label.Name, 'BP', 1)
+        tokens = [token_move, token_sp, token_bp_label]
+        instructions = parser.parse(tokens)
+        base_pointer_address = dec_to_bin(32767)
+        assert instructions == [move_opcode + sp_address + constant_address,
+                                base_pointer_address]
 
     msg_invalid_syntax = [['Double right brackets', [token_move, token_a, token_right_bracket,
                                                      token_b, token_right_bracket]],

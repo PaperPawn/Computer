@@ -3,7 +3,8 @@ import pytest
 
 from bitarray import bitarray
 
-from computer.chips.memory import Register, RAM8, RAM64, RAM512, RAM4K, RAM32K, PC
+from computer.chips.memory import Register, RAM8, RAM64, RAM512, RAM4K, RAM8K, RAM32K, CombinedRAM, PC
+from computer.utility.numbers import dec_to_bin
 
 from computer.chips.tests import ZEROS, ONES, INT_ONE, INT_TWO, INT_THREE, INT_NEG_TWO, ALTERNATING_ONE_ZERO, ALTERNATING_ZERO_ONE
 
@@ -273,6 +274,30 @@ class TestRam4K:
         assert ram(UNUSED, address_2, 0) == value_2
 
 
+class TestRam8K:
+    def test_set_then_get_no_mock(self):
+        ram = RAM8K()
+
+        value_1 = INT_ONE
+        address_1 = bitarray('1101011011101')
+
+        value_2 = INT_TWO
+        address_2 = bitarray('1001010011101')
+
+        ram(value_1, address_1, 1)
+        ram(value_2, address_2, 1)
+
+        ram.tick()
+
+        assert ram(UNUSED, address_1, 0) == value_1
+        assert ram(UNUSED, address_2, 0) == value_2
+
+        ram.tick()
+
+        assert ram(UNUSED, address_1, 0) == value_1
+        assert ram(UNUSED, address_2, 0) == value_2
+
+
 class TestRam32K:
     def test_set_then_get_no_mock(self):
         ram = RAM32K()
@@ -295,6 +320,48 @@ class TestRam32K:
 
         assert ram(UNUSED, address_1, 0) == value_1
         assert ram(UNUSED, address_2, 0) == value_2
+
+
+class TestCombinedRAM:
+    def test_set_then_get_no_mock(self):
+        ram = CombinedRAM()
+
+        # Up to 32 767 -> 32K Ram
+        # From 32768 to 40959 -> 8K Screen memory
+        # 40960 -> Keyboard register
+        # 40960+ -> Mapping?
+
+        value_1 = INT_ONE
+        value_2 = INT_TWO
+        value_3 = dec_to_bin(48)
+        value_4 = dec_to_bin(63)
+
+        address_1 = dec_to_bin(4735)
+        address_2 = dec_to_bin(32767)
+        screen_address = dec_to_bin(32768)
+        keyboard_address = dec_to_bin(40960)
+
+        ram(value_1, address_1, 1)
+        ram(value_2, address_2, 1)
+        ram(value_3, screen_address, 1)
+        ram(value_4, keyboard_address, 1)
+
+        ram.tick()
+
+        assert ram(UNUSED, address_1, 0) == value_1
+        assert ram(UNUSED, address_2, 0) == value_2
+        assert ram(UNUSED, screen_address, 0) == value_3
+        assert ram(UNUSED, keyboard_address, 0) == value_4
+
+        ram.tick()
+
+        assert ram(UNUSED, address_1, 0) == value_1
+        assert ram(UNUSED, address_2, 0) == value_2
+        assert ram(UNUSED, screen_address, 0) == value_3
+        assert ram(UNUSED, keyboard_address, 0) == value_4
+
+        assert ram.screen(UNUSED, ZEROS, 0) == value_3
+        assert ram.keyboard(UNUSED, 0) == value_4
 
 
 class TestProgramCounter:

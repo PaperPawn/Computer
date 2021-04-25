@@ -3,9 +3,10 @@ import os
 
 from bitarray import bitarray
 
-from PyQt5.QtWidgets import QApplication, QMainWindow, QLabel, QListWidget, QListWidgetItem, QPushButton
+from PyQt5.QtWidgets import (QApplication, QMainWindow, QLabel, QLineEdit,
+                             QListWidget, QListWidgetItem, QPushButton)
 from PyQt5.QtGui import QFont
-from PyQt5.QtCore import Qt, QTimer, QObject, QThread, pyqtSignal, pyqtSlot
+from PyQt5.QtCore import Qt, pyqtSlot # QTimer, QObject, QThread, pyqtSignal,
 
 from computer.emulator import Emulator, get_hdd_with_test_program, get_bootloader
 from computer.chips.central_processing_unit import CPU
@@ -41,6 +42,8 @@ class StatusWindow(QMainWindow):
 
         self.load_button = QPushButton(self)
         self.run_button = QPushButton(self)
+        self.run_until_button = QPushButton(self)
+        self.until_input = QLineEdit(self)
         self.next_button = QPushButton(self)
         self.reset_button = QPushButton(self)
 
@@ -60,19 +63,25 @@ class StatusWindow(QMainWindow):
 
     def setup_buttons(self):
         self.load_button.setText('Load')
-        # self.next_button.move()
+
+        self.reset_button.setText('Reset')
+        self.reset_button.move(100, 0)
+        self.reset_button.clicked.connect(self.on_reset)
 
         self.run_button.setText('Run')
-        self.run_button.move(100, 0)
+        self.run_button.move(200, 0)
         self.run_button.clicked.connect(self.on_run)
 
         self.next_button.setText('Next')
-        self.next_button.move(200, 0)
+        self.next_button.move(300, 0)
         self.next_button.clicked.connect(self.on_next)
 
-        self.reset_button.setText('Reset')
-        self.reset_button.move(300, 0)
-        self.reset_button.clicked.connect(self.on_reset)
+        self.run_until_button.setText('Run until')
+        self.run_until_button.move(400, 0)
+        self.run_until_button.clicked.connect(self.on_run_until)
+
+        self.until_input.setText('0')
+        self.until_input.move(500, 0)
 
     def setup_instructions_list(self):
         instructions_x = 400
@@ -212,6 +221,16 @@ class StatusWindow(QMainWindow):
         self.update()
 
     @pyqtSlot()
+    def on_run_until(self):
+        instruction = int(self.until_input.text())
+        current_instruction = 0
+        shutdown = False
+        while not shutdown and current_instruction != instruction:
+            shutdown = self.emulator.tick()
+            current_instruction = bin_to_dec(self.emulator.cpu.pc.register.value)
+        self.update()
+
+    @pyqtSlot()
     def on_reset(self):
         self.emulator.reset()
         self.update()
@@ -227,20 +246,21 @@ def main():
     cpu = CPU(ram, hdd)
     emulator = Emulator(cpu)
 
-    # bootloader = get_bootloader()
+    bootloader = get_bootloader()
+    emulator.load_binary(bootloader)
     # emulator.load_instructions(bootloader)
 
-    file_name = 'test.bin'
-    file_path = os.path.join(r'D:\Programmering\python\computer\computer\assembler',
-                             file_name)
-    binary = bitarray(0)
-    with open(file_path, 'rb') as file:
-        binary.fromfile(file)
-    instructions=[]
-    for i in range(int(len(binary)/16)):
-        instruction = binary[i * 16:(i + 1) * 16]
-        instructions.append(instruction)
-    emulator.load_instructions(instructions[1:])
+    # file_name = 'test.bin'
+    # file_path = os.path.join(r'D:\Programmering\python\computer\computer\assembler',
+    #                          file_name)
+    # binary = bitarray(0)
+    # with open(file_path, 'rb') as file:
+    #     binary.fromfile(file)
+    # instructions=[]
+    # for i in range(int(len(binary)/16)):
+    #     instruction = binary[i * 16:(i + 1) * 16]
+    #     instructions.append(instruction)
+    # emulator.load_instructions(instructions[1:])
 
     window = StatusWindow(emulator)
 

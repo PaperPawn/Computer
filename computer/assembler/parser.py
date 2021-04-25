@@ -47,7 +47,8 @@ class Parser:
         self.debug = debug
 
         self.labels = {}
-        self.variables = {'KEYBOARD': None, 'SCREEN': None}
+        self.variables = {}
+        self.built_ins = ['KEYBOARD', 'SCREEN']
 
     def parse(self, tokens):
         self.tokens = tokens
@@ -66,7 +67,7 @@ class Parser:
 
     @property
     def declared_labels(self):
-        return list(self.labels) + list(self.variables)
+        return list(self.labels) + list(self.variables) + self.built_ins
 
     def parse_next_instruction(self):
         token = self.get_next_token()

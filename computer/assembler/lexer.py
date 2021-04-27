@@ -59,8 +59,18 @@ class Lexer:
         return self.scan_keyword_or_label_token(name)
 
     def scan_number(self):
-        name = self.scan_generic(numbers)
-        return self.make_token(Literal.Int, int(name))
+        base = 'd'
+        characters = numbers
+
+        first_digit = self.get_next_character()
+        if self.characters and self.peek_next() in ['b', 'x']:
+            base = self.get_next_character()
+            if base == 'x':
+                characters += 'abcdef'
+
+        name = first_digit + self.scan_generic(characters)
+        base = {'x': 16, 'd': 10, 'b': 2}[base]
+        return self.make_token(Literal.Int, int(name, base))
 
     def scan_delimiter(self):
         character = self.get_next_character()

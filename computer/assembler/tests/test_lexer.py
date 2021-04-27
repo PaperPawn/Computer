@@ -281,6 +281,29 @@ class TestLexer:
                           Token(Delimiter.RightBracket, ']', 1),
                           ]
 
+    binary_input = [('0b1011', 11), ('0b0', 0), ('0b1', 1), ('0b11110', 30)]
+
+    @pytest.mark.parametrize('binary, dec', binary_input)
+    def test_binary_number(self, lexer, binary, dec):
+        line = f'move a {binary}'
+        tokens = lexer.scan(line)
+        assert tokens == [Token(Keyword.Move, 'move', 1),
+                          Token(Keyword.a, 'a', 1),
+                          Token(Literal.Int, dec, 1)
+                          ]
+
+    hex_input = [('0xa', 10), ('0xb', 11), ('0xc', 12),
+                 ('0xd', 13), ('0xe', 14), ('0xf', 15),
+                 ('0x1f', 31), ('0xff', 255)]
+
+    @pytest.mark.parametrize('hexdec, dec', hex_input)
+    def test_hex_number(self, lexer, hexdec, dec):
+        line = f'move a {hexdec}'
+        tokens = lexer.scan(line)
+        assert tokens == [Token(Keyword.Move, 'move', 1),
+                          Token(Keyword.a, 'a', 1),
+                          Token(Literal.Int, dec, 1)
+                          ]
 # import
 
 # Never implement?s

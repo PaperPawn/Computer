@@ -24,6 +24,8 @@ def link(instructions, labels, variables, mode='loadable'):
 def update_relative_locations(instructions, labels, variables, mode):
     access_locations = []
 
+    # This is wrong!
+    # Must count number of jump to labels
     loader_size = 1 + 4 * (len(variables)+len(labels)) if mode == 'loadable' else 0
     free_memory = loader_size + len(instructions)
 

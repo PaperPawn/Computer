@@ -2,8 +2,9 @@ import sys
 
 from PyQt5.QtWidgets import QApplication, QMainWindow, QWidget, QLabel
 from PyQt5.QtGui import QPainter, QPixmap, QPolygon
-from PyQt5.QtCore import Qt, QTimer, QPoint  # QObject, QThread, pyqtSignal
+from PyQt5.QtCore import Qt, QTimer, QPoint, QObject, QThread, pyqtSignal
 
+from computer.utility.status_gui import StatusWindow
 from computer.emulator import make_emulator
 
 
@@ -11,8 +12,8 @@ class Window(QMainWindow):
     def __init__(self, emulator):
         super().__init__()
 
-        left = 300
-        top = 300
+        left = 1200
+        top = 400
         width = 512
         height = 256
 
@@ -43,22 +44,27 @@ class Screen(QLabel):
         self.setPixmap(canvas)
 
         self.emulator = emulator
+        # self.run_thread_task()
         # self.set_pixels()
 
         self.start_automatic_refresh()
 
     def start_automatic_refresh(self):
         timer = QTimer(self)
-        timer.timeout.connect(self.run_emulation)
+        # timer.timeout.connect(self.run_emulation)
+        timer.timeout.connect(self.update_screen)
         timer.start(100)
 
-    def run_emulation(self):
-        cycles = 10
-        if not self.emulator.shutdown:
-            print(f'running {cycles} cycles')
-            for i in range(cycles):
-                self.emulator.tick()
-        print(f'shutdown: {self.emulator.shutdown}')
+    # def run_emulation(self):
+    #     cycles = 10
+    #     if not self.emulator.shutdown:
+    #         print(f'running {cycles} cycles')
+    #         for i in range(cycles):
+    #             self.emulator.tick()
+    #     print(f'shutdown: {self.emulator.shutdown}')
+    #     self.set_pixels()
+
+    def update_screen(self):
         self.set_pixels()
 
     def set_pixels(self):
@@ -95,12 +101,47 @@ class Screen(QLabel):
             for y in range(self.screen_height):
                 painter.drawPoint(x, y)
 
+    def run_thread_task(self,):
+        # Step 2: Create a QThread object
+        self.thread = QThread()
+
+        # Step 3: Create a worker object
+        self.worker = Worker(self.emulator)
+
+        # Step 4: Move worker to the thread
+        self.worker.moveToThread(self.thread)
+
+        # Step 5: Connect signals and slots
+        self.thread.started.connect(self.worker.run)
+        self.worker.finished.connect(self.thread.quit)
+        self.worker.finished.connect(self.worker.deleteLater)
+        self.thread.finished.connect(self.thread.deleteLater)
+        # self.worker.progress.connect(self.reportProgress)
+
+        # Step 6: Start the thread
+        self.thread.start()
+
+
+class Worker(QObject):
+    finished = pyqtSignal()
+    progress = pyqtSignal(int)
+
+    def __init__(self, emulator):
+        super().__init__()
+        self.emulator = emulator
+
+    def run(self):
+        pass
+        # print('running emulator')
+        # self.emulator.run()
+
 
 def main():
     app = QApplication(sys.argv)
 
-    emulator = make_emulator()
+    emulator = make_emulator('ball.bin')
     _window = Window(emulator)
+    status_window = StatusWindow(emulator)
 
     sys.exit(app.exec())
 

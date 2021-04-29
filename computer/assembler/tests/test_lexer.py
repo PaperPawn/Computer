@@ -294,7 +294,7 @@ class TestLexer:
 
     hex_input = [('0xa', 10), ('0xb', 11), ('0xc', 12),
                  ('0xd', 13), ('0xe', 14), ('0xf', 15),
-                 ('0x1f', 31), ('0xff', 255)]
+                 ('0x1f', 31), ('0xff', 255), ('0x200', 512)]
 
     @pytest.mark.parametrize('hexdec, dec', hex_input)
     def test_hex_number(self, lexer, hexdec, dec):

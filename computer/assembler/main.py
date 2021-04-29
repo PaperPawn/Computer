@@ -8,7 +8,7 @@ from computer.utility.status import decode_instruction
 
 
 def main():
-    file_name = 'draw_square'
+    file_name = 'ball'
     # file_name = 'test'
     # file_name = 'bootloader'
     in_file_path = f'{file_name}.eas'
@@ -23,13 +23,16 @@ def main():
         tokens = []
         for line in file:
             tokens.extend(lexer.scan(line))
-
+    # for token in tokens:
+        # print(token)
     print('>> Parsing')
     instructions = parser.parse(tokens)
+    # print(len(instructions))
     # print(instructions)
+    # print(parser.labels)
     print('>> Linking')
     instructions = link(instructions, parser.labels, parser.variables) #, mode='boot')
-    # print(instructions)
+    # print(len(instructions))
     print(f'>> Building binary: {out_file_path}')
     binary = bitarray()
     # old_decoded = ''

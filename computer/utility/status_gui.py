@@ -22,7 +22,7 @@ class StatusWindow(QMainWindow):
         super().__init__()
 
         self.emulator = emulator
-        left = 300
+        left = 200
         top = 300
         width = 800
         height = 600

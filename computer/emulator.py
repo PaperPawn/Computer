@@ -85,9 +85,9 @@ def main():
     print('Emulation completed')
 
 
-def make_emulator(verbose=False):
+def make_emulator(binary_file, verbose=False):
     ram = CombinedRAM()
-    hdd = get_hdd_with_loaded_program('draw_square.bin')
+    hdd = get_hdd_with_loaded_program(binary_file)
     cpu = CPU(ram, hdd)
     emulator = Emulator(cpu, verbose)
     bootloader = get_bootloader()

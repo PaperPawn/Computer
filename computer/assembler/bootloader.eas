@@ -1,0 +1,17 @@
+move sp BP
+move a program_start
+move b 0
+hddread c b
+inc b
+hddread d b
+inc b
+:start_loop
+hddread [a] b
+inc a
+inc b
+compare c b
+jump_zero load_program
+jump start_loop
+:load_program
+push program_start
+:program_start

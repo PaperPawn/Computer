@@ -142,6 +142,42 @@ class TestLinker:
                           dec_to_bin(11)  # jump to start
                           ]
 
+    def test_multiple_calls(self):
+        instructions = [jump_opcode + unused_opcode + constant_address,
+                        Token(Label.Name, 'end', 1),
+                        move_opcode + a_address + constant_address,
+                        dec_to_bin(1),
+                        jump_opcode + unused_opcode + constant_address,
+                        Token(Label.Name, 'end', 2),
+                        ]
+        labels = {'end': 4}
+        variables = {}
+
+        linked = link(instructions, labels, variables)
+        assert linked == [dec_to_bin(17),  # Program length
+                          dec_to_bin(0),  # ALlocated space
+                          # Loader
+                          pop_opcode+a_address+spp_address,
+
+                          move_opcode + b_address + constant_address,  # move b literal
+                          dec_to_bin(10),  # location of first jump to end
+                          alu_opcode + alu_add + b_address + a_address,  # add b a
+                          alu_opcode + alu_add + bp_address + a_address,  # add [b] a
+
+                          move_opcode + b_address + constant_address,  # move b literal
+                          dec_to_bin(14),  # location of second jump to end
+                          alu_opcode + alu_add + b_address + a_address,  # add b a
+                          alu_opcode + alu_add + bp_address + a_address,  # add [b] a
+
+                          # Program
+                          jump_opcode + unused_opcode + constant_address,
+                          dec_to_bin(13),  # jump to end
+                          move_opcode + a_address + constant_address,
+                          dec_to_bin(1),  # literal
+                          jump_opcode + unused_opcode + constant_address,
+                          dec_to_bin(13)  # jump to end
+                          ]
+
     def test_alloc_size_1_as_boot(self):
         instructions = [move_opcode+constantp_address+a_address,
                         Token(Label.Name, 'var', 1)

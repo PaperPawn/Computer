@@ -23,8 +23,8 @@ def main():
         tokens = []
         for line in file:
             tokens.extend(lexer.scan(line))
-    # for token in tokens:
-        # print(token)
+    for token in tokens:
+        print(token)
     print('>> Parsing')
     instructions = parser.parse(tokens)
     # print(len(instructions))

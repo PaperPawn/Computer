@@ -2,13 +2,13 @@ import sys
 
 from bitarray import bitarray
 
-from PyQt5.QtWidgets import QApplication, QMainWindow, QWidget, QLabel
+from PyQt5.QtWidgets import QApplication, QMainWindow, QLabel
 from PyQt5.QtGui import QPainter, QPixmap, QPolygon
-from PyQt5.QtCore import Qt, QTimer, QPoint, QObject, QThread, pyqtSignal
+from PyQt5.QtCore import Qt, QTimer, QPoint, QObject, pyqtSignal
 
 from computer.utility.status_gui import StatusWindow
 from computer.emulator import make_emulator
-from computer.utility.numbers import bin_to_dec
+from computer.utility.numbers import bin_to_dec, dec_to_bin
 
 
 class Window(QMainWindow):
@@ -37,9 +37,14 @@ class Window(QMainWindow):
         p.setColor(self.backgroundRole(), Qt.black)
         self.setPalette(p)
 
+    def keyPressEvent(self, event):
+        key = event.key()
+        self.screen.key_pressed(key)
+
 
 class Screen(QLabel):
     request_screen_memory = pyqtSignal()
+    key_press = pyqtSignal(int)
 
     def __init__(self, parent, width, height, worker):
         super().__init__(parent)
@@ -50,6 +55,7 @@ class Screen(QLabel):
 
         self.request_screen_memory.connect(worker.send_screen_memory)
         worker.send_screen_memory_signal.connect(self.set_screen_memory)
+        self.key_press.connect(worker.key_press)
 
         self.bits = bitarray()
 
@@ -59,6 +65,9 @@ class Screen(QLabel):
         timer = QTimer(self)
         timer.timeout.connect(self.update_screen)
         timer.start(1000)
+
+    def key_pressed(self, key):
+        self.key_press.emit(key)
 
     def update_screen(self):
         self.set_pixels()
@@ -171,6 +180,10 @@ class Worker(QObject):
                      'pc': self.emulator.cpu.pc.register.value.copy(),
                      'sp': self.emulator.cpu.sp.value.copy()}
         self.send_registers_signal.emit(registers)
+
+    def key_press(self, key):
+        if key < 65536:
+            self.emulator.cpu.ram.keyboard.next_value = dec_to_bin(key)
 
 
 def main():

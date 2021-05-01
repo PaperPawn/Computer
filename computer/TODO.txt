@@ -2,12 +2,8 @@ StatusGUI:
 - Add stack
 - Add hex and bin
 
-Lexer
-- Check correct output of line numbers
-
 Screen:
 - Add screen buffering
-- Add support for keyboard
 
 CMD:
 - Add assembler to path

@@ -23,7 +23,6 @@ class Lexer:
 
     def scan(self, line):
         self.characters = [char for char in line]
-        self.line = 1
         tokens = []
         while self.characters:
             self.strip_whitespace()

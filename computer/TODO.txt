@@ -4,10 +4,9 @@ StatusGUI:
 
 Lexer
 - Check correct output of line numbers
-- Bug: Counts the number of labels and variables to find loader size, should count number of jumps to labels
 
 Screen:
-- Add support for reading screen
+- Add screen buffering
 - Add support for keyboard
 
 CMD:

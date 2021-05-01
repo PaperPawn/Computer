@@ -3,7 +3,9 @@ from bitarray import bitarray
 
 def bin_to_dec(bits):
     if len(bits) != 16:
-        raise Exception(f'bitarray must be 16 long, is {len(bits)}')
+        msg = f'bitarray must be 16 long, is {len(bits)}'
+        print(msg)
+        raise Exception(msg)
     return int.from_bytes(bits.tobytes(), 'big')
 
 

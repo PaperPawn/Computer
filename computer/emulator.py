@@ -79,7 +79,7 @@ class Emulator:
 
 
 def main():
-    emulator = make_emulator(verbose=True)
+    emulator = make_emulator('ball.bin', verbose=True)
 
     emulator.run()
     print('Emulation completed')

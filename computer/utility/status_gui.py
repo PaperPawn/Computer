@@ -6,7 +6,7 @@ from bitarray import bitarray
 from PyQt5.QtWidgets import (QApplication, QMainWindow, QLabel, QLineEdit,
                              QListWidget, QListWidgetItem, QPushButton)
 from PyQt5.QtGui import QFont
-from PyQt5.QtCore import Qt, pyqtSlot # QTimer, QObject, QThread, pyqtSignal,
+from PyQt5.QtCore import Qt, pyqtSlot, QTimer, QObject, QThread, pyqtSignal
 
 from computer.emulator import make_emulator
 
@@ -18,10 +18,21 @@ NULL = bitarray(16)
 
 
 class StatusWindow(QMainWindow):
-    def __init__(self, emulator):
+    run = pyqtSignal()
+    run_until = pyqtSignal(int)
+    tick = pyqtSignal()
+    reset = pyqtSignal()
+    request_memory = pyqtSignal()
+    request_registers = pyqtSignal()
+
+    def __init__(self, worker):
         super().__init__()
 
-        self.emulator = emulator
+        self.memory = bitarray()
+
+        self.worker = worker
+        self.connect_worker(worker)
+
         left = 200
         top = 300
         width = 800
@@ -49,15 +60,24 @@ class StatusWindow(QMainWindow):
         self.setup_instructions_list()
         self.setup_buttons()
 
-        # label.setAlignment(Qt.AlignCenter)
-        # vbox = QVBoxLayout()
-        # vbox.addWidget(label)
-        # vbox.addStretch()
-
-        # self.setLayout(vbox)
         self.set_instructions()
+        self.request_memory.emit()
+        self.request_registers.emit()
         self.update()
         self.show()
+
+    def connect_worker(self, worker):
+        self.run.connect(worker.run)
+        self.run_until.connect(worker.run_until)
+        worker.send_update.connect(self.update)
+        self.tick.connect(worker.tick)
+        self.reset.connect(worker.reset)
+
+        self.request_memory.connect(worker.send_memory)
+        worker.send_memory_signal.connect(self.set_memory)
+
+        self.request_registers.connect(worker.send_registers)
+        worker.send_registers_signal.connect(self.set_registers)
 
     def setup_buttons(self):
         self.load_button.setText('Load')
@@ -125,23 +145,22 @@ class StatusWindow(QMainWindow):
         self.registers.move(x, y)
         self.registers.resize(width, height)
 
-    def set_register_values(self):
-        registers = {'a': self.emulator.cpu.a.value,
-                     'b': self.emulator.cpu.b.value,
-                     'c': self.emulator.cpu.c.value,
-                     'd': self.emulator.cpu.d.value,
-                     'pc': self.emulator.cpu.pc.register.value,
-                     'sp': self.emulator.cpu.sp.value}
+    def set_registers(self, registers):
+        self.register_values = registers
+
+    def set_memory(self, memory):
+        self.memory = memory
+
+    def update_register_values(self):
         bins = {}
         dec = {}
         pointers = {}
         p_dec = {}
-        for register in registers:
-            value = registers[register]
+        for register in self.register_values:
+            value = self.register_values[register]
             bins[register] = get_bitarray_string(value)
             dec[register] = bin_to_dec(value)
-
-            memory = self.emulator.cpu.ram_bus(NULL, value, 0)
+            memory = self.get_memory_location(dec[register])
             pointers[register] = get_bitarray_string(memory)
             p_dec[register] = bin_to_dec(memory)
 
@@ -160,8 +179,7 @@ class StatusWindow(QMainWindow):
     def set_instructions(self):
         last_decoded = ''
         for i in range(self.instructions_shown):
-            address = dec_to_bin(i)
-            instruction = self.emulator.cpu.ram_bus(NULL, address, 0)
+            instruction = self.get_memory_location(i)
             if 'constant' in last_decoded:
                 decoded = str(bin_to_dec(instruction))
             else:
@@ -171,11 +189,15 @@ class StatusWindow(QMainWindow):
             self.add_decoded(f'{i}: {decoded}')
             last_decoded = decoded
 
+    def get_memory_location(self, i):
+        if i < 32768:
+            return self.memory[i * 16:(i + 1) * 16]
+        return bitarray('0'*16)
+
     def update_instructions(self):
         last_decoded = ''
         for i in range(self.instructions_shown):
-            address = dec_to_bin(i)
-            instruction = self.emulator.cpu.ram_bus(NULL, address, 0)
+            instruction = self.get_memory_location(i)
             if 'constant' in last_decoded:
                 decoded = str(bin_to_dec(instruction))
             else:
@@ -185,7 +207,7 @@ class StatusWindow(QMainWindow):
             last_decoded = decoded
 
     def highlight_current_instruction(self):
-        pc = bin_to_dec(self.emulator.cpu.pc.register.value)
+        pc = bin_to_dec(self.register_values['pc'])
         self.instructions.item(pc).setSelected(True)
         self.decoded.item(pc).setSelected(True)
 
@@ -204,33 +226,43 @@ class StatusWindow(QMainWindow):
         widget.setAutoFillBackground(True)
 
     def update(self):
-        self.set_register_values()
+        self.update_register_values()
         self.update_instructions()
         self.highlight_current_instruction()
 
     @pyqtSlot()
     def on_next(self):
-        self.emulator.tick()
-        self.update()
+        self.tick.emit()
 
     @pyqtSlot()
     def on_run(self):
-        self.emulator.run()
-        self.update()
+        self.run.emit()
 
     @pyqtSlot()
     def on_run_until(self):
         instruction = int(self.until_input.text())
-        current_instruction = 0
-        while not self.emulator.shutdown and current_instruction != instruction:
-            self.emulator.tick()
-            current_instruction = bin_to_dec(self.emulator.cpu.pc.register.value)
-        self.update()
+        self.run_until.emit(instruction)
 
     @pyqtSlot()
     def on_reset(self):
-        self.emulator.reset()
-        self.update()
+        self.reset.emit()
+
+    def run_thread_task(self,):
+        # Step 1: Create a QThread object
+        self.thread = QThread()
+
+        # Step 2: Move worker to the thread
+        self.worker.moveToThread(self.thread)
+
+        # Step 3: Connect signals and slots
+        self.thread.started.connect(self.worker.start)
+        self.worker.finished.connect(self.thread.quit)
+        self.worker.finished.connect(self.worker.deleteLater)
+        self.thread.finished.connect(self.thread.deleteLater)
+        # self.worker.progress.connect(self.reportProgress)
+
+        # Step 4: Start the thread
+        self.thread.start()
 
 
 def main():
